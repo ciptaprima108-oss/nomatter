@@ -6,21 +6,21 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kilau">
+<meta name="apple-mobile-web-app-title" content="No Matter">
 <meta name="theme-color" content="#0e0e12">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
-<title>Kilau</title>
+<title>No Matter</title>
 <style>
-:root{--bg:#0e0e12;--panel:#17171d;--line:#2a2a33;--text:#f2f2f5;--mute:#8d8d99;--acc:#ff6a5c;--acc2:#ffb15c}
+:root{--bg:#0e0e12;--panel:#17171d;--line:#2a2a33;--text:#f2f2f5;--mute:#8d8d99;--acc:#ffffff;--acc2:#d9d9de}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 body{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-top:env(safe-area-inset-top);overflow:hidden}
 header{display:flex;align-items:center;gap:6px;padding:8px 12px}
-.brand{font-weight:800;font-size:21px;letter-spacing:.5px;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:auto}
+.brand{height:24px;width:auto;max-width:34vw;object-fit:contain;object-position:left;margin-right:auto;display:block;flex:0 1 auto;min-width:0}
 .btn{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 13px;font:inherit;font-weight:600;cursor:pointer}
-.btn.primary{background:linear-gradient(90deg,var(--acc),var(--acc2));border:0;color:#1d0d06}
+.btn.primary{background:linear-gradient(90deg,var(--acc),var(--acc2));border:0;color:#0a0a0c}
 .btn.sm{padding:6px 11px;font-size:13px}
 .btn:disabled{opacity:.35}
 .btn svg{width:18px;height:18px;vertical-align:-4px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -28,7 +28,7 @@ header{display:flex;align-items:center;gap:6px;padding:8px 12px}
 #frame{position:relative;overflow:hidden;touch-action:none;display:none;box-shadow:0 6px 30px #0009}
 #cv{display:block;width:100%;height:100%}
 #empty{text-align:center;padding:24px;max-width:320px}
-#empty .logo{width:96px;height:96px;border-radius:24px;margin:0 auto 18px;display:block}
+#empty .logo{width:100%;max-width:320px;margin:0 auto 22px;display:block}
 #empty h1{font-size:24px;margin:0 0 6px}
 #empty p{color:var(--mute);margin:0 0 22px}
 #empty .btn{font-size:17px;padding:13px 26px}
@@ -84,7 +84,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 </head>
 <body>
 <header>
- <span class="brand">Kilau</span>
+ <img class="brand" src="brand.png" alt="No Matter">
  <button class="btn sm" id="bOpen" title="Buka foto"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></button>
  <button class="btn sm" id="bUndo" title="Urungkan" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
  <button class="btn sm" id="bRedo" title="Ulangi" disabled><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
@@ -93,8 +93,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;bac
 </header>
 <div id="stage">
  <div id="empty">
-  <img class="logo" src="icon-192.png" alt="">
-  <h1>Kilau</h1>
+  <img class="logo" src="wordmark.png" alt="No Matter">
   <p>Editor foto & selfie. Semua diproses di HP kamu, tanpa upload.</p>
   <button class="btn primary" id="bOpen2">Pilih Foto</button>
  </div>
@@ -515,7 +514,7 @@ $('#bSave').onclick=async()=>{if(!S.src)return;if(tab==='crop')setTab('filter');
  try{const base=buildBase(SRC_MAX,S.crop),w=base.width,h=base.height,bx=base.getContext('2d',{willReadFrequently:true});const id=bx.getImageData(0,0,w,h),o=new Uint8ClampedArray(id.data);
   process(id,w,h,cfgS(),{getBlur:()=>boxBlur(o,w,h,blurRad(w,h),3),getSharp:()=>boxBlur(o,w,h,1,1)});bx.putImageData(id,0,0);compose(bx,w,h,false);
   const blob=await new Promise(r=>base.toBlob(r,'image/jpeg',0.93));
-  outFile=new File([blob],'kilau-'+Date.now()+'.jpg',{type:'image/jpeg'});if(outURL)URL.revokeObjectURL(outURL);outURL=URL.createObjectURL(blob);
+  outFile=new File([blob],'nomatter-'+Date.now()+'.jpg',{type:'image/jpeg'});if(outURL)URL.revokeObjectURL(outURL);outURL=URL.createObjectURL(blob);
   $('#outImg').src=outURL;$('#out').style.display='flex';
  }catch(err){alert('Gagal menyimpan: '+err.message);}
  busy(false);req();};
