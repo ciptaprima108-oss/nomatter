@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kilau">
+<meta name="theme-color" content="#0e0e12">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<title>Kilau</title>
+<style>
+:root{--bg:#0e0e12;--panel:#17171d;--line:#2a2a33;--text:#f2f2f5;--mute:#8d8d99;--acc:#ff6a5c;--acc2:#ffb15c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh;padding-top:env(safe-area-inset-top);overflow:hidden}
+header{display:flex;align-items:center;gap:6px;padding:8px 12px}
+.brand{font-weight:800;font-size:21px;letter-spacing:.5px;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent;margin-right:auto}
+.btn{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 13px;font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:linear-gradient(90deg,var(--acc),var(--acc2));border:0;color:#1d0d06}
+.btn.sm{padding:6px 11px;font-size:13px}
+.btn:disabled{opacity:.35}
+.btn svg{width:18px;height:18px;vertical-align:-4px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+#frame{position:relative;overflow:hidden;touch-action:none;display:none;box-shadow:0 6px 30px #0009}
+#cv{display:block;width:100%;height:100%}
+#empty{text-align:center;padding:24px;max-width:320px}
+#empty .logo{width:96px;height:96px;border-radius:24px;margin:0 auto 18px;display:block}
+#empty h1{font-size:24px;margin:0 0 6px}
+#empty p{color:var(--mute);margin:0 0 22px}
+#empty .btn{font-size:17px;padding:13px 26px}
+#crop{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);pointer-events:none;display:none;
+ background-image:linear-gradient(#fff5,#fff5),linear-gradient(#fff5,#fff5),linear-gradient(#fff5,#fff5),linear-gradient(#fff5,#fff5);
+ background-size:1px 100%,1px 100%,100% 1px,100% 1px;background-position:33.33% 0,66.66% 0,0 33.33%,0 66.66%;background-repeat:no-repeat}
+#crop i{position:absolute;width:20px;height:20px;border:4px solid #fff}
+#crop i:nth-child(1){left:-5px;top:-5px;border-right:0;border-bottom:0}
+#crop i:nth-child(2){right:-5px;top:-5px;border-left:0;border-bottom:0}
+#crop i:nth-child(3){left:-5px;bottom:-5px;border-right:0;border-top:0}
+#crop i:nth-child(4){right:-5px;bottom:-5px;border-left:0;border-top:0}
+#hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:#000a;color:#fff;font-size:12px;padding:5px 10px;border-radius:999px;pointer-events:none;white-space:nowrap;opacity:0;transition:opacity .3s}
+#panel{background:var(--panel);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+#panel.off{opacity:.4;pointer-events:none}
+#tools{height:150px;padding:10px 0 4px;overflow:hidden}
+.tabs{display:flex;overflow-x:auto;border-top:1px solid var(--line);scrollbar-width:none}
+.tabs::-webkit-scrollbar,.chips::-webkit-scrollbar,.thumbs::-webkit-scrollbar{display:none}
+.tab{flex:1 0 62px;background:none;border:0;color:var(--mute);font:inherit;font-size:11px;padding:8px 0 6px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.tab svg{width:23px;height:23px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab.on{color:var(--text)}.tab.on svg{stroke:var(--acc)}
+.chips{display:flex;gap:7px;overflow-x:auto;padding:0 12px 10px;scrollbar-width:none}
+.chip{flex:none;background:#24242c;border:0;color:var(--text);border-radius:999px;padding:7px 13px;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.chip.on{background:var(--text);color:var(--bg)}
+.row{display:flex;align-items:center;gap:10px;padding:2px 16px}
+.lbl{font-size:12px;color:var(--mute);width:62px;flex:none}
+input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:30px;background:transparent;margin:0}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:#fff;margin-top:-10px;box-shadow:0 1px 4px #0008}
+input[type=range]::-moz-range-track{height:4px;background:var(--line)}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0}
+.val{width:36px;text-align:right;color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums}
+.thumbs{display:flex;gap:10px;overflow-x:auto;padding:0 12px 6px}
+.thumb{flex:none;width:62px;text-align:center;font-size:11px;color:var(--mute);background:none;border:0;padding:0;font-family:inherit;cursor:pointer}
+.thumb canvas{width:62px;height:62px;border-radius:12px;display:block;border:2px solid transparent;margin-bottom:3px;background:#222}
+.thumb.on canvas{border-color:var(--acc)}.thumb.on{color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;padding:0 10px;height:128px;overflow-y:auto}
+.grid button{font-size:27px;background:none;border:0;padding:3px 0;cursor:pointer;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.sw{display:flex;gap:8px;padding:0 14px 8px;overflow-x:auto}
+.sw button{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid #fff3;cursor:pointer}
+.sw button.on{border-color:#fff;transform:scale(1.15)}
+.txtin{display:flex;gap:8px;padding:0 12px 8px}
+.txtin input{flex:1;min-width:0;background:#24242c;border:1px solid var(--line);color:var(--text);border-radius:12px;padding:9px 12px;font:inherit;font-size:16px;-webkit-user-select:text;user-select:text}
+.note{color:var(--mute);font-size:12px;padding:2px 16px}
+.itembar{display:flex;align-items:center;gap:8px;padding:0 12px 6px}
+#busy{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:20;font-weight:600}
+#busy div{width:38px;height:38px;border:4px solid #fff3;border-top-color:var(--acc);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+#out{position:fixed;inset:0;background:#000e;display:none;flex-direction:column;align-items:center;justify-content:center;z-index:30;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px);gap:14px;text-align:center}
+#out img{max-width:100%;max-height:62vh;border-radius:8px;-webkit-touch-callout:default;-webkit-user-select:auto;user-select:auto}
+#out p{color:#ccc;margin:0;font-size:14px}
+#out .acts{display:flex;gap:10px}
+</style>
+</head>
+<body>
+<header>
+ <span class="brand">Kilau</span>
+ <button class="btn sm" id="bOpen" title="Buka foto"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></button>
+ <button class="btn sm" id="bUndo" title="Urungkan" disabled><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-2" transform="translate(0 -6)"/></svg></button>
+ <button class="btn sm" id="bRedo" title="Ulangi" disabled><svg viewBox="0 0 24 24"><path d="M15 7l5 5-5 5"/><path d="M20 12H10a6 6 0 0 0 0 12h2" transform="translate(0 -6)"/></svg></button>
+ <button class="btn sm" id="bCmp" title="Tahan untuk lihat asli" disabled><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg></button>
+ <button class="btn primary sm" id="bSave" disabled>Simpan</button>
+</header>
+<div id="stage">
+ <div id="empty">
+  <img class="logo" src="icon-192.png" alt="">
+  <h1>Kilau</h1>
+  <p>Editor foto & selfie. Semua diproses di HP kamu, tanpa upload.</p>
+  <button class="btn primary" id="bOpen2">Pilih Foto</button>
+ </div>
+ <div id="frame"><canvas id="cv"></canvas><div id="crop"><i></i><i></i><i></i><i></i></div></div>
+ <div id="hint"></div>
+</div>
+<div id="panel" class="off">
+ <div id="tools"></div>
+ <nav class="tabs" id="tabs"></nav>
+</div>
+<input type="file" id="file" accept="image/*" hidden>
+<div id="busy"><div><div></div>Memproses…</div></div>
+<div id="out">
+ <img id="outImg" alt="Hasil">
+ <p>Ketuk <b>Simpan ke Foto</b>, atau tekan lama gambar lalu pilih "Simpan ke Foto".</p>
+ <div class="acts"><button class="btn" id="bOutClose">Kembali</button><button class="btn primary" id="bShare">Simpan ke Foto</button></div>
+</div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const cv=$('#cv'), ctx=cv.getContext('2d',{willReadFrequently:true});
+const SRC_MAX=2560, PREV_MAX=1200;
+const EMOJI_FONT='"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+
+/* ---------- data ---------- */
+const ADJ=[['bright','Kecerahan',-100,100],['contrast','Kontras',-100,100],['sat','Saturasi',-100,100],['warm','Kehangatan',-100,100],['tint','Rona',-100,100],['highl','Sorotan',-100,100],['shadow','Bayangan',-100,100],['fade','Pudar',0,100],['sharp','Ketajaman',0,100],['vig','Vinyet',0,100],['grain','Butiran',0,100]];
+const FILTERS=[
+ {id:'asli',n:'Asli',p:{}},
+ {id:'cerah',n:'Cerah',p:{bright:14,contrast:8,sat:12}},
+ {id:'segar',n:'Segar',p:{bright:8,sat:18,contrast:10,warm:-6},hi:[0,8,4]},
+ {id:'hangat',n:'Hangat',p:{warm:30,sat:8,bright:4}},
+ {id:'sejuk',n:'Sejuk',p:{warm:-30,contrast:6}},
+ {id:'lembut',n:'Lembut',p:{fade:30,contrast:-12,sat:-12,bright:6}},
+ {id:'pastel',n:'Pastel',p:{fade:25,sat:-30,bright:10},hi:[18,0,12],sh:[0,6,14]},
+ {id:'peach',n:'Persik',p:{bright:10,warm:12,fade:12},hi:[22,6,0]},
+ {id:'senja',n:'Senja',p:{warm:35,contrast:10,vig:25},hi:[20,0,6],sh:[10,0,24]},
+ {id:'tropis',n:'Tropis',p:{sat:28,contrast:12},hi:[16,6,-10],sh:[-10,10,16]},
+ {id:'kota',n:'Kota',p:{contrast:22,sat:-18,vig:20},hi:[14,8,-6],sh:[-8,6,18]},
+ {id:'film',n:'Film',p:{fade:35,grain:30,contrast:6,warm:10,vig:20},sh:[0,10,12]},
+ {id:'retro',n:'Retro',p:{warm:22,fade:30,sat:-25,grain:20,vig:35},hi:[14,8,-14]},
+ {id:'malam',n:'Malam',p:{contrast:18,bright:-8,sat:10,warm:-18,vig:30},sh:[0,0,20]},
+ {id:'mono',n:'Mono',mono:1,p:{contrast:12}},
+ {id:'noir',n:'Noir',mono:1,p:{contrast:45,vig:45,grain:15}},
+ {id:'sepia',n:'Sepia',mono:1,p:{contrast:6,fade:10},hi:[30,14,-14],sh:[22,8,-12]},
+];
+const STICKERS='❤️ 💖 💕 ✨ ⭐ 🌟 💫 🔥 🌸 🌼 🌷 🌹 🦋 🌈 ☀️ 🌙 ⚡ ☁️ 🎀 👑 💎 🎉 🎈 🎂 🍓 🍒 🍑 🍉 🧋 🍦 🐱 🐶 🐰 🐻 🧸 🐥 😎 😍 🥰 😘 😂 🤩 😇 🥳 😜 🤪 😴 🙈 👍 ✌️ 🤟 🙏 👀 💯 💋 📸 🎵 🎧 🌴 🌊 🏖️ ✈️ 💬 💭'.split(' ');
+const COLORS=['#ffffff','#111111','#ff4d5e','#ff8a3d','#ffd23f','#5ee07a','#38c9ff','#4d6bff','#b45cff','#ff6fcf','#a0522d','#9aa0a6'];
+const FONTS=[['Sans','800','-apple-system,"Helvetica Neue",Arial,sans-serif'],['Serif','700','Georgia,"Times New Roman",serif'],['Tegas','900','"Arial Black","Helvetica Neue",Impact,sans-serif'],['Tulis','400','"Snell Roundhand","Brush Script MT","Segoe Script",cursive'],['Mesin','700','"Courier New",Courier,monospace'],['Bulat','800','"Arial Rounded MT Bold","Avenir Next",Verdana,sans-serif']];
+const FRAMES=[['none','Tanpa'],['putih','Putih'],['hitam','Hitam'],['polaroid','Polaroid'],['film','Film'],['bulat','Sudut Bulat'],['ganda','Garis Ganda'],['pelangi','Pelangi'],['bintik','Polkadot'],['kabur','Tepi Lembut']];
+const BRUSH=[['draw','Kuas'],['marker','Stabilo'],['neon','Neon'],['mosaic','Mosaik'],['blur','Blur']];
+const TABS=[
+ ['filter','Filter','<circle cx="9" cy="10" r="5"/><circle cx="15" cy="10" r="5"/><circle cx="12" cy="15" r="5"/>'],
+ ['adjust','Atur','<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'],
+ ['crop','Potong','<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M2 6h14a2 2 0 0 1 2 2v14"/>'],
+ ['beauty','Cantik','<path d="M12 3l2.2 5.3L20 9l-4.4 3.8L17 19l-5-3-5 3 1.4-6.2L4 9l5.8-.7z"/>'],
+ ['sticker','Stiker','<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/>'],
+ ['text','Teks','<path d="M5 6V4h14v2M12 4v16M9 20h6"/>'],
+ ['brush','Kuas','<path d="M18 3l3 3-9.5 9.5-3-3z"/><path d="M8.5 12.5C5 13 5 16 4 19c3-1 6-1 6.5-4.5"/>'],
+ ['frame','Bingkai','<rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="10" height="10"/>'],
+];
+
+/* ---------- state ---------- */
+const S={src:null,rot:0,flip:false,straight:0,crop:null,adj:{},filter:'asli',fstr:100,beauty:{smooth:0,glow:0,slim:0},items:[],strokes:[],frame:'none'};
+function resetEdits(){S.rot=0;S.flip=false;S.straight=0;S.crop=null;S.adj={};for(const a of ADJ)S.adj[a[0]]=0;S.filter='asli';S.fstr=100;S.beauty={smooth:0,glow:0};S.items=[];S.strokes=[];S.frame='none';}
+resetEdits();
+let tab='filter', sel=-1, showOrig=false, cropDraft=null, aspect=null;
+let adjSel='bright', beautySel='smooth', brushMode='draw', brushColor='#ffffff', brushSize=0.02, spotSize=0.04;
+let txtColor='#ffffff', txtStyle='garis', txtFont=0;
+
+/* ---------- history ---------- */
+let hist=[], fut=[], cur=null;
+function snap(){return JSON.stringify({rot:S.rot,flip:S.flip,straight:S.straight,crop:S.crop,adj:S.adj,filter:S.filter,fstr:S.fstr,beauty:S.beauty,frame:S.frame,strokes:S.strokes,items:S.items.map(({_hw,_hh,...r})=>r)})}
+function commit(){const s=snap();if(s===cur)return;if(cur)hist.push(cur);if(hist.length>60)hist.shift();cur=s;fut=[];updHist();}
+function restore(s){Object.assign(S,JSON.parse(s));sel=-1;if(tab==='crop')cropDraft=S.crop?{...S.crop}:{x:0,y:0,w:1,h:1};buildTools();req();}
+function undo(){if(!hist.length)return;fut.push(cur);cur=hist.pop();restore(cur);updHist();}
+function redo(){if(!fut.length)return;hist.push(cur);cur=fut.pop();restore(cur);updHist();}
+function updHist(){$('#bUndo').disabled=!hist.length;$('#bRedo').disabled=!fut.length;}
+
+/* ---------- image processing ---------- */
+function boxBlur(src,w,h,r,passes){
+ let a=new Uint8ClampedArray(src), t=new Uint8ClampedArray(src.length);
+ for(let p=0;p<passes;p++){blurH(a,t,w,h,r);blurV(t,a,w,h,r);}
+ return a;
+}
+function blurH(s,o,w,h,r){const div=2*r+1;
+ for(let y=0;y<h;y++){const row=y*w*4;
+  for(let c=0;c<3;c++){let acc=0;
+   for(let k=-r;k<=r;k++){const x=k<0?0:(k>w-1?w-1:k);acc+=s[row+x*4+c];}
+   for(let x=0;x<w;x++){o[row+x*4+c]=acc/div;const xa=x+r+1>w-1?w-1:x+r+1, xr=x-r<0?0:x-r;acc+=s[row+xa*4+c]-s[row+xr*4+c];}
+  }}
+}
+function blurV(s,o,w,h,r){const div=2*r+1, st=w*4;
+ for(let x=0;x<w;x++){const col=x*4;
+  for(let c=0;c<3;c++){let acc=0;
+   for(let k=-r;k<=r;k++){const y=k<0?0:(k>h-1?h-1:k);acc+=s[y*st+col+c];}
+   for(let y=0;y<h;y++){o[y*st+col+c]=acc/div;const ya=y+r+1>h-1?h-1:y+r+1, yr=y-r<0?0:y-r;acc+=s[ya*st+col+c]-s[yr*st+col+c];}
+  }}
+}
+const blurRad=(w,h)=>Math.max(2,Math.round(Math.max(w,h)*0.007));
+function soft(v,lo,hi){return v<lo?Math.max(0,1-(lo-v)/10):v>hi?Math.max(0,1-(v-hi)/10):1}
+function hash(x,y){let n=Math.imul(x,374761393)+Math.imul(y,668265263)|0;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295;}
+
+function process(id,w,h,cfg,opt){
+ const d=id.data, f=FILTERS.find(x=>x.id===cfg.filter)||FILTERS[0], k=cfg.fstr/100;
+ const P={};for(const a of ADJ)P[a[0]]=(cfg.adj[a[0]]||0)+(f.p[a[0]]||0)*k;
+ const mono=f.mono?k:0, hi=(f.hi||[0,0,0]).map(v=>v*k), sh=(f.sh||[0,0,0]).map(v=>v*k);
+ const n=w*h*4;
+ // beauty: skin-aware smoothing + brightening
+ const sm=(cfg.beauty.smooth||0)/100, gl=(cfg.beauty.glow||0)/100;
+ if(sm>0||gl>0){const bl=opt.getBlur();
+  for(let i=0;i<n;i+=4){const r=d[i],g=d[i+1],b=d[i+2];
+   const cb=128-0.168736*r-0.331264*g+0.5*b, cr=128+0.5*r-0.418688*g-0.081312*b;
+   const s=soft(cb,77,127)*soft(cr,133,173); if(s<=0)continue;
+   const br=bl[i],bg=bl[i+1],bb=bl[i+2];
+   const diff=(Math.abs(br-r)+Math.abs(bg-g)+Math.abs(bb-b))/3, e=diff>34?0:1-diff/34;
+   const a=sm*s*e*0.96;
+   let R=r+(br-r)*a, G=g+(bg-g)*a, B=b+(bb-b)*a;
+   if(gl>0){const t=gl*s*0.32;R+=(255-R)*t*0.62;G+=(255-G)*t*0.56;B+=(255-B)*t*0.52;}
+   d[i]=R;d[i+1]=G;d[i+2]=B;}
+ }
+ if(P.sharp>0){const bl=opt.getSharp(), am=P.sharp/100*1.6;
+  for(let i=0;i<n;i+=4){d[i]+=(d[i]-bl[i])*am;d[i+1]+=(d[i+1]-bl[i+1])*am;d[i+2]+=(d[i+2]-bl[i+2])*am;}}
+ const B=P.bright*0.9, cf=P.contrast>=0?1+P.contrast/100*1.3:1+P.contrast/100*0.85, sat=1+P.sat/100;
+ const W=P.warm*0.45, T=P.tint*0.4, F=P.fade/100, V=P.vig/100, G=P.grain, HL=P.highl/100, SH=P.shadow/100;
+ const cx=w/2, cy=h/2, md=cx*cx+cy*cy, toned=hi[0]||hi[1]||hi[2]||sh[0]||sh[1]||sh[2];
+ for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;
+  let r=d[i]+B, g=d[i+1]+B, b=d[i+2]+B;
+  if(HL||SH){const l=(0.299*r+0.587*g+0.114*b)/255;
+   const adj=(HL*(l>0.5?(l-0.5)*2:0)*(HL>0?(1-l):l)*120)+(SH*(l<0.5?(0.5-l)*2:0)*(SH>0?(1-l):l)*120);
+   r+=adj;g+=adj;b+=adj;}
+  r=(r-128)*cf+128;g=(g-128)*cf+128;b=(b-128)*cf+128;
+  const L=0.299*r+0.587*g+0.114*b;
+  r=L+(r-L)*sat;g=L+(g-L)*sat;b=L+(b-L)*sat;
+  if(mono){r+=(L-r)*mono;g+=(L-g)*mono;b+=(L-b)*mono;}
+  r+=W;b-=W;g-=T;r+=T*0.3;b+=T*0.3;
+  if(toned){const l=L<0?0:L>255?1:L/255, m=1-l;r+=hi[0]*l+sh[0]*m;g+=hi[1]*l+sh[1]*m;b+=hi[2]*l+sh[2]*m;}
+  if(F){r=r*(1-F*0.22)+F*38;g=g*(1-F*0.22)+F*38;b=b*(1-F*0.22)+F*38;}
+  if(V){const dd=((x-cx)*(x-cx)+(y-cy)*(y-cy))/md, m=1-V*0.8*dd*Math.sqrt(dd);r*=m;g*=m;b*=m;}
+  if(G){const q=(hash(x,y)-0.5)*G*0.9;r+=q;g+=q;b+=q;}
+  d[i]=r;d[i+1]=g;d[i+2]=b;}
+}
+const cfgS=()=>({adj:S.adj,filter:S.filter,fstr:S.fstr,beauty:S.beauty});
+
+/* ---------- geometry ---------- */
+function rotDims(){const q=S.rot%2!==0;return q?[S.src.height,S.src.width]:[S.src.width,S.src.height];}
+function buildBase(maxSide,crop,src=S.src){
+ const q=S.rot%2!==0, RW=q?src.height:src.width, RH=q?src.width:src.height;
+ const c=crop||{x:0,y:0,w:1,h:1}, cw=RW*c.w, ch=RH*c.h, sc=Math.min(1,maxSide/Math.max(cw,ch));
+ const out=document.createElement('canvas');out.width=Math.max(1,Math.round(cw*sc));out.height=Math.max(1,Math.round(ch*sc));
+ const x=out.getContext('2d',{willReadFrequently:true});x.imageSmoothingQuality='high';
+ x.scale(out.width/cw,out.height/ch);x.translate(-c.x*RW,-c.y*RH);
+ x.translate(RW/2,RH/2);
+ const a=S.straight*Math.PI/180, co=Math.abs(Math.cos(a)), si=Math.abs(Math.sin(a));
+ const cover=Math.max((RW*co+RH*si)/RW,(RW*si+RH*co)/RH);
+ x.rotate(a);x.scale(cover,cover);x.rotate(S.rot*Math.PI/2);if(S.flip)x.scale(-1,1);
+ x.drawImage(src,-src.width/2,-src.height/2);
+ return out;
+}
+
+/* ---------- overlays: strokes, items, frame ---------- */
+function fxLayer(src,w,h,kind){
+ const div=kind==='mosaic'?Math.max(6,Math.round(Math.max(w,h)/55)):kind==='heal'?Math.max(4,Math.round(Math.max(w,h)/90)):Math.max(6,Math.round(Math.max(w,h)/45));
+ const sw=Math.max(1,Math.round(w/div)), shh=Math.max(1,Math.round(h/div));
+ const s=document.createElement('canvas');s.width=sw;s.height=shh;const sx=s.getContext('2d');sx.imageSmoothingEnabled=true;sx.imageSmoothingQuality='high';sx.drawImage(src,0,0,sw,shh);
+ const o=document.createElement('canvas');o.width=w;o.height=h;const ox=o.getContext('2d');
+ ox.imageSmoothingEnabled=kind!=='mosaic';ox.imageSmoothingQuality='high';ox.drawImage(s,0,0,w,h);
+ return o;
+}
+function pathStroke(x,st,w,h){const p=st.p;x.beginPath();x.moveTo(p[0][0]*w,p[0][1]*h);
+ if(p.length===1)x.lineTo(p[0][0]*w+0.01,p[0][1]*h);
+ for(let i=1;i<p.length-1;i++){const mx=(p[i][0]+p[i+1][0])/2*w,my=(p[i][1]+p[i+1][1])/2*h;x.quadraticCurveTo(p[i][0]*w,p[i][1]*h,mx,my);}
+ if(p.length>1){const l=p[p.length-1];x.lineTo(l[0]*w,l[1]*h);}
+ x.lineCap='round';x.lineJoin='round';x.lineWidth=st.w*w;}
+function drawStrokes(c,w,h){
+ if(!S.strokes.length)return;
+ for(const kind of ['heal','mosaic','blur']){const list=S.strokes.filter(s=>s.k===kind);if(!list.length)continue;
+  const layer=fxLayer(c.canvas,w,h,kind), m=document.createElement('canvas');m.width=w;m.height=h;const mx=m.getContext('2d');
+  for(const st of list){
+   if(kind==='heal'){const [px,py]=st.p[0], r=st.w*w/2, g=mx.createRadialGradient(px*w,py*h,0,px*w,py*h,r);g.addColorStop(0,'#000');g.addColorStop(.6,'#000');g.addColorStop(1,'#0000');mx.fillStyle=g;mx.beginPath();mx.arc(px*w,py*h,r,0,7);mx.fill();}
+   else{pathStroke(mx,st,w,h);mx.strokeStyle='#000';mx.stroke();}
+  }
+  mx.globalCompositeOperation='source-in';mx.drawImage(layer,0,0);c.drawImage(m,0,0);
+ }
+ for(const st of S.strokes){if(!['draw','marker','neon'].includes(st.k))continue;c.save();pathStroke(c,st,w,h);
+  if(st.k==='marker'){c.globalAlpha=.45;c.lineCap='square';c.strokeStyle=st.c;c.stroke();}
+  else if(st.k==='neon'){c.shadowColor=st.c;c.shadowBlur=st.w*w*1.6;c.strokeStyle=st.c;c.stroke();c.shadowBlur=0;c.lineWidth=st.w*w*0.4;c.strokeStyle='#fff';c.stroke();}
+  else{c.strokeStyle=st.c;c.stroke();}
+  c.restore();}
+}
+function lum(hex){const v=parseInt(hex.slice(1),16);return (0.299*(v>>16)+0.587*(v>>8&255)+0.114*(v&255))/255;}
+function drawItems(c,w,h,preview){
+ S.items.forEach((it,idx)=>{const fs=it.size*w;c.save();c.translate(it.x*w,it.y*h);c.rotate(it.rot||0);c.textAlign='center';c.textBaseline='middle';
+  let hw,hh;
+  if(it.type==='emoji'){c.font=fs+'px '+EMOJI_FONT;c.fillText(it.text,0,fs*0.05);hw=fs*0.6;hh=fs*0.6;}
+  else{const F=FONTS[it.font]||FONTS[0];c.font=F[1]+' '+fs+'px '+F[2];const lines=String(it.text).split('\n'), lh=fs*1.18;
+   const mw=Math.max(...lines.map(l=>c.measureText(l).width),fs*0.5);hw=mw/2;hh=lines.length*lh/2;
+   const y0=-hh+lh/2;
+   if(it.style==='latar'){const px=fs*0.35,py=fs*0.18;c.fillStyle=it.color;const rx=-hw-px,ry=-hh-py,rw=mw+px*2,rh=hh*2+py*2,rr=fs*0.3;
+    c.beginPath();if(c.roundRect)c.roundRect(rx,ry,rw,rh,rr);else c.rect(rx,ry,rw,rh);c.fill();hw+=px;hh+=py;
+    c.fillStyle=lum(it.color)>0.6?'#111':'#fff';lines.forEach((l,i)=>c.fillText(l,0,y0+i*lh));}
+   else{if(it.style==='garis'){c.lineJoin='round';c.lineWidth=fs*0.14;c.strokeStyle=lum(it.color)>0.5?'#111':'#fff';lines.forEach((l,i)=>c.strokeText(l,0,y0+i*lh));}
+    else if(it.style==='bayang'){c.shadowColor='#000a';c.shadowBlur=fs*0.15;c.shadowOffsetY=fs*0.05;}
+    else if(it.style==='neon'){c.shadowColor=it.color;c.shadowBlur=fs*0.45;}
+    c.fillStyle=it.style==='neon'?'#fff':it.color;lines.forEach((l,i)=>c.fillText(l,0,y0+i*lh));
+    if(it.style==='neon'){c.fillStyle=it.color;c.globalAlpha=.35;lines.forEach((l,i)=>c.fillText(l,0,y0+i*lh));}}
+  }
+  it._hw=hw/w;it._hh=hh/w;
+  if(preview&&idx===sel){const p=Math.max(6,w*0.012);c.shadowBlur=0;c.globalAlpha=1;c.setLineDash([w*0.012,w*0.008]);c.lineWidth=Math.max(2,w*0.0035);c.strokeStyle='#fff';c.strokeRect(-hw-p,-hh-p,hw*2+p*2,hh*2+p*2);}
+  c.restore();});
+}
+function drawFrame(c,w,h,f){
+ if(f==='none')return;const m=Math.min(w,h);c.save();
+ const border=(t,col)=>{c.fillStyle=col;c.fillRect(0,0,w,t);c.fillRect(0,h-t,w,t);c.fillRect(0,0,t,h);c.fillRect(w-t,0,t,h);};
+ if(f==='putih')border(m*0.04,'#fff');
+ else if(f==='hitam')border(m*0.04,'#000');
+ else if(f==='polaroid'){const t=m*0.05;c.fillStyle='#fbfaf6';c.fillRect(0,0,w,t);c.fillRect(0,0,t,h);c.fillRect(w-t,0,t,h);c.fillRect(0,h-m*0.17,w,m*0.17);}
+ else if(f==='film'){const t=m*0.09;c.fillStyle='#111';c.fillRect(0,0,t,h);c.fillRect(w-t,0,t,h);c.fillStyle='#f4f1e8';const hs=t*0.38,gap=hs*1.9;for(let y=gap/2;y<h;y+=gap){c.fillRect(t*0.31,y,hs,hs*0.75);c.fillRect(w-t*0.31-hs,y,hs,hs*0.75);}}
+ else if(f==='bulat'){const r=m*0.08;c.fillStyle='#000';c.beginPath();c.rect(0,0,w,h);if(c.roundRect)c.roundRect(m*0.03,m*0.03,w-m*0.06,h-m*0.06,r);c.fill('evenodd');}
+ else if(f==='ganda'){border(m*0.03,'#fff');c.strokeStyle='#fff';c.lineWidth=m*0.006;c.strokeRect(m*0.05,m*0.05,w-m*0.1,h-m*0.1);}
+ else if(f==='pelangi'){const t=m*0.035,g=c.createLinearGradient(0,0,w,h);['#ff4d5e','#ff8a3d','#ffd23f','#5ee07a','#38c9ff','#b45cff'].forEach((col,i,a)=>g.addColorStop(i/(a.length-1),col));c.strokeStyle=g;c.lineWidth=t*2;c.strokeRect(0,0,w,h);}
+ else if(f==='bintik'){const t=m*0.06;border(t,'#ffd6e0');c.fillStyle='#fff';const s=t*0.5;for(let x=s;x<w;x+=t*0.9)for(const y of [t/2,h-t/2]){c.beginPath();c.arc(x,y,t*0.16,0,7);c.fill();}for(let y=s;y<h;y+=t*0.9)for(const x of [t/2,w-t/2]){c.beginPath();c.arc(x,y,t*0.16,0,7);c.fill();}}
+ else if(f==='kabur'){const g=c.createRadialGradient(w/2,h/2,Math.min(w,h)*0.35,w/2,h/2,Math.hypot(w,h)/2);g.addColorStop(0,'#fff0');g.addColorStop(1,'#fff');c.fillStyle=g;c.fillRect(0,0,w,h);}
+ c.restore();
+}
+function compose(c,w,h,preview){drawStrokes(c,w,h);drawItems(c,w,h,preview);drawFrame(c,w,h,S.frame);}
+
+/* ---------- preview render ---------- */
+let cache={key:''};
+function getBase(){const crop=tab==='crop'?null:S.crop;const key=[S.rot,S.flip,S.straight,JSON.stringify(crop)].join('|');
+ if(cache.key!==key){const b=buildBase(PREV_MAX,crop);const bx=b.getContext('2d',{willReadFrequently:true});cache={key,base:b,data:bx.getImageData(0,0,b.width,b.height),blur:null,sblur:null};thumbsKey='';}
+ return cache;}
+function render(){if(!S.src)return;const c=getBase(), w=c.base.width, h=c.base.height;
+ if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;fit();}
+ if(showOrig){ctx.drawImage(c.base,0,0);return;}
+ const id=new ImageData(new Uint8ClampedArray(c.data.data),w,h);
+ process(id,w,h,cfgS(),{getBlur:()=>c.blur||(c.blur=boxBlur(c.data.data,w,h,blurRad(w,h),3)),getSharp:()=>c.sblur||(c.sblur=boxBlur(c.data.data,w,h,1,1))});
+ ctx.putImageData(id,0,0);
+ if(tab==='crop')updateCropBox();else compose(ctx,w,h,true);
+ if(tab==='filter')renderThumbs();
+}
+let raf=0;function req(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;render();});}
+function fit(){if(!cv.width)return;const st=$('#stage'),sw=st.clientWidth-20,sh=st.clientHeight-20,s=Math.min(sw/cv.width,sh/cv.height);const fr=$('#frame');fr.style.width=Math.floor(cv.width*s)+'px';fr.style.height=Math.floor(cv.height*s)+'px';}
+addEventListener('resize',()=>{fit();});
+let hintT=0;function hint(t){const e=$('#hint');e.textContent=t;e.style.opacity=1;clearTimeout(hintT);hintT=setTimeout(()=>e.style.opacity=0,2200);}
+
+/* ---------- filter thumbnails ---------- */
+let thumbsKey='', thumbBase=null;
+function renderThumbs(){const box=$('#thumbs');if(!box)return;const key=cache.key;if(thumbsKey===key&&box.dataset.ok)return;thumbsKey=key;box.dataset.ok=1;
+ const b=cache.base, s=Math.min(b.width,b.height), t=document.createElement('canvas');t.width=t.height=110;
+ t.getContext('2d').drawImage(b,(b.width-s)/2,(b.height-s)/2,s,s,0,0,110,110);const src=t.getContext('2d').getImageData(0,0,110,110);
+ box.querySelectorAll('canvas').forEach(c=>{const id=new ImageData(new Uint8ClampedArray(src.data),110,110);
+  process(id,110,110,{adj:{},filter:c.dataset.f,fstr:100,beauty:{}},{});c.getContext('2d').putImageData(id,0,0);});}
+
+/* ---------- tools UI ---------- */
+function el(html){const d=document.createElement('div');d.innerHTML=html.trim();return d;}
+function slider(label,min,max,val,oninput,onchange){
+ const r=el(`<div class="row"><span class="lbl">${label}</span><input type="range" min="${min}" max="${max}" step="1" value="${val}"><span class="val">${Math.round(val)}</span></div>`).firstChild;
+ const i=r.querySelector('input'),v=r.querySelector('.val');
+ i.addEventListener('input',()=>{v.textContent=i.value;oninput(+i.value);});
+ i.addEventListener('change',()=>{(onchange||commit)();});
+ i.addEventListener('dblclick',()=>{const z=min<0?0:min;i.value=z;v.textContent=z;oninput(z);commit();});
+ return r;}
+function chips(list,on,cb){const c=document.createElement('div');c.className='chips';
+ list.forEach(([id,n])=>{const b=document.createElement('button');b.className='chip'+(id===on?' on':'');b.textContent=n;b.onclick=()=>{c.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(id);};c.appendChild(b);});return c;}
+function swatches(on,cb){const c=document.createElement('div');c.className='sw';
+ COLORS.forEach(col=>{const b=document.createElement('button');b.style.background=col;if(col===on)b.className='on';b.onclick=()=>{c.querySelectorAll('button').forEach(x=>x.className='');b.className='on';cb(col);};c.appendChild(b);});return c;}
+function selItem(){return sel>=0?S.items[sel]:null;}
+function itemBar(){const it=selItem();if(!it)return null;
+ const bar=document.createElement('div');bar.className='itembar';
+ const s=slider('Ukuran',2,60,Math.round(it.size*100),v=>{it.size=v/100;req();});s.style.flex='1';s.style.padding='0 4px';
+ const del=document.createElement('button');del.className='btn sm';del.textContent='Hapus';del.onclick=()=>{S.items.splice(sel,1);sel=-1;commit();buildTools();req();};
+ const dup=document.createElement('button');dup.className='btn sm';dup.textContent='Salin';dup.onclick=()=>{const c=JSON.parse(JSON.stringify(it));c.x=Math.min(.95,c.x+.05);c.y=Math.min(.95,c.y+.05);S.items.push(c);sel=S.items.length-1;commit();buildTools();req();};
+ bar.append(s,dup,del);return bar;}
+
+function buildTools(){const T=$('#tools');T.innerHTML='';
+ $('#crop').style.display=tab==='crop'?'block':'none';
+ if(tab==='filter'){
+  const th=document.createElement('div');th.className='thumbs';th.id='thumbs';
+  FILTERS.forEach(f=>{const b=document.createElement('button');b.className='thumb'+(S.filter===f.id?' on':'');b.innerHTML=`<canvas width="110" height="110" data-f="${f.id}"></canvas>${f.n}`;
+   b.onclick=()=>{S.filter=f.id;th.querySelectorAll('.thumb').forEach(x=>x.classList.remove('on'));b.classList.add('on');commit();req();};th.appendChild(b);});
+  T.append(th,slider('Kekuatan',0,100,S.fstr,v=>{S.fstr=v;req();}));thumbsKey='';
+ }
+ else if(tab==='adjust'){
+  const box=document.createElement('div');
+  const mk=()=>{box.innerHTML='';const a=ADJ.find(x=>x[0]===adjSel);box.append(slider(a[1],a[2],a[3],S.adj[adjSel],v=>{S.adj[adjSel]=v;req();}));};
+  T.append(chips(ADJ.map(a=>[a[0],a[1]]),adjSel,id=>{adjSel=id;mk();}),box);mk();
+  const r=document.createElement('div');r.className='row';r.innerHTML='<span class="note" style="padding:0">Ketuk 2x slider untuk reset</span>';
+  const rb=document.createElement('button');rb.className='btn sm';rb.style.marginLeft='auto';rb.textContent='Reset semua';rb.onclick=()=>{for(const a of ADJ)S.adj[a[0]]=0;commit();buildTools();req();};r.append(rb);T.append(r);
+ }
+ else if(tab==='crop'){
+  T.append(chips([['free','Bebas'],['1','1:1'],['0.8','4:5'],['0.75','3:4'],['0.5625','9:16'],['1.7778','16:9'],['1.3333','4:3'],['orig','Asli']],aspect||'free',id=>{aspect=id==='free'?null:id;applyAspect();req();}));
+  const r=document.createElement('div');r.className='row';r.style.paddingBottom='6px';
+  const b1=document.createElement('button');b1.className='btn sm';b1.textContent='⟲ Putar';b1.onclick=()=>{S.rot=(S.rot+3)%4;cropDraft={x:0,y:0,w:1,h:1};applyAspect();req();};
+  const b2=document.createElement('button');b2.className='btn sm';b2.textContent='⇋ Cermin';b2.onclick=()=>{S.flip=!S.flip;cropDraft.x=1-cropDraft.x-cropDraft.w;req();};
+  const b3=document.createElement('button');b3.className='btn sm';b3.textContent='Reset';b3.onclick=()=>{S.rot=0;S.flip=false;S.straight=0;aspect=null;cropDraft={x:0,y:0,w:1,h:1};buildTools();req();};
+  r.append(b1,b2,b3);T.append(r,slider('Luruskan',-30,30,S.straight,v=>{S.straight=v;req();},()=>{}));
+ }
+ else if(tab==='beauty'){
+  const box=document.createElement('div');
+  const mk=()=>{box.innerHTML='';
+   if(beautySel==='spot'){box.append(slider('Ukuran',1,12,Math.round(spotSize*100),v=>{spotSize=v/100;},()=>{}));const n=document.createElement('div');n.className='note';n.textContent='Ketuk jerawat / noda di foto untuk menghilangkannya.';box.append(n);}
+   else box.append(slider(beautySel==='smooth'?'Haluskan':'Cerahkan',0,100,S.beauty[beautySel]||0,v=>{S.beauty[beautySel]=v;req();}));
+   if(beautySel!=='spot'){const n=document.createElement('div');n.className='note';n.textContent='Otomatis mendeteksi area kulit.';box.append(n);}};
+  T.append(chips([['smooth','Haluskan Kulit'],['glow','Cerahkan Wajah'],['spot','Hapus Noda']],beautySel,id=>{beautySel=id;mk();}),box);mk();
+  const auto=document.createElement('div');auto.className='row';const ab=document.createElement('button');ab.className='btn sm';ab.textContent='✨ Cantik Otomatis';
+  ab.onclick=()=>{S.beauty.smooth=55;S.beauty.glow=35;S.adj.bright=Math.max(S.adj.bright,6);commit();mk();req();};auto.append(ab);T.append(auto);
+ }
+ else if(tab==='sticker'){
+  const bar=itemBar();if(bar)T.append(bar);
+  const g=document.createElement('div');g.className='grid';if(bar)g.style.height='84px';
+  STICKERS.forEach(e=>{const b=document.createElement('button');b.textContent=e;b.onclick=()=>{S.items.push({type:'emoji',text:e,x:.5,y:.5,size:.18,rot:0});sel=S.items.length-1;commit();buildTools();req();hint('Geser untuk pindah, cubit 2 jari untuk ukuran & putar');};g.appendChild(b);});
+  T.append(g);
+ }
+ else if(tab==='text'){
+  const it=selItem()&&selItem().type==='text'?selItem():null;
+  const ti=el(`<div class="txtin"><input id="txt" placeholder="Tulis teks…" maxlength="80" enterkeyhint="done"><button class="btn sm primary" id="tAdd">${it?'Selesai':'Tambah'}</button></div>`).firstChild;
+  const inp=ti.querySelector('input');if(it)inp.value=it.text;
+  inp.addEventListener('input',()=>{if(it){it.text=inp.value||' ';req();}});
+  inp.addEventListener('change',()=>{if(it)commit();});
+  ti.querySelector('#tAdd').onclick=()=>{if(it){sel=-1;commit();buildTools();req();inp.blur();return;}
+   const t=inp.value.trim();if(!t){inp.focus();return;}S.items.push({type:'text',text:t,x:.5,y:.5,size:.09,rot:0,color:txtColor,style:txtStyle,font:txtFont});sel=S.items.length-1;commit();buildTools();req();};
+  const opts=chips([['polos','Polos'],['garis','Garis'],['latar','Latar'],['bayang','Bayangan'],['neon','Neon'],...FONTS.map((f,i)=>['f'+i,'Aa '+f[0]])],null,id=>{
+   if(id[0]==='f'){txtFont=+id.slice(1);if(it)it.font=txtFont;}else{txtStyle=id;if(it)it.style=txtStyle;}if(it){commit();req();}});
+  opts.querySelectorAll('.chip').forEach(c=>{const on=(it?it.style:txtStyle);const fo=(it?it.font:txtFont);if(c.textContent===({polos:'Polos',garis:'Garis',latar:'Latar',bayang:'Bayangan',neon:'Neon'})[on]||c.textContent==='Aa '+FONTS[fo][0])c.classList.add('on');});
+  opts.onclick=e=>{if(!e.target.classList.contains('chip'))return;const isFont=e.target.textContent.startsWith('Aa ');opts.querySelectorAll('.chip').forEach(c=>{if(c.textContent.startsWith('Aa ')===isFont)c.classList.toggle('on',c===e.target);});};
+  T.append(ti,opts,swatches(it?it.color:txtColor,col=>{txtColor=col;if(it){it.color=col;commit();req();}}));
+  if(it){const bar=itemBar();T.append(bar);}
+ }
+ else if(tab==='brush'){
+  T.append(chips(BRUSH,brushMode,id=>{brushMode=id;}));
+  T.append(slider('Ukuran',1,15,Math.round(brushSize*200),v=>{brushSize=v/200;},()=>{}));
+  T.append(swatches(brushColor,c=>{brushColor=c;}));
+  const r=document.createElement('div');r.className='row';
+  const u=document.createElement('button');u.className='btn sm';u.textContent='Hapus coretan terakhir';u.onclick=()=>{const idx=findLast(S.strokes,s=>s.k!=='heal');if(idx>=0){S.strokes.splice(idx,1);commit();req();}};
+  const c=document.createElement('button');c.className='btn sm';c.textContent='Hapus semua';c.onclick=()=>{S.strokes=S.strokes.filter(s=>s.k==='heal');commit();req();};
+  r.append(u,c);T.append(r);
+ }
+ else if(tab==='frame'){
+  T.append(chips(FRAMES,S.frame,id=>{S.frame=id;commit();req();}));
+  const n=document.createElement('div');n.className='note';n.textContent='Pilih bingkai, hasilnya langsung terlihat di foto.';T.append(n);
+ }
+}
+function findLast(a,f){for(let i=a.length-1;i>=0;i--)if(f(a[i]))return i;return -1;}
+
+/* ---------- tabs ---------- */
+function buildTabs(){const n=$('#tabs');TABS.forEach(([id,name,svg])=>{const b=document.createElement('button');b.className='tab'+(id===tab?' on':'');b.dataset.t=id;b.innerHTML=`<svg viewBox="0 0 24 24">${svg}</svg>${name}`;b.onclick=()=>setTab(id);n.appendChild(b);});}
+function setTab(t){if(t===tab)return;
+ if(tab==='crop'){const d=cropDraft;S.crop=(d.x<0.001&&d.y<0.001&&d.w>0.999&&d.h>0.999)?null:{...d};commit();}
+ tab=t;if(t==='crop'){cropDraft=S.crop?{...S.crop}:{x:0,y:0,w:1,h:1};sel=-1;}
+ if(t!=='sticker'&&t!=='text')sel=-1;
+ document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+ buildTools();req();
+ if(t==='brush')hint('Gores di foto untuk menggambar');
+ if(t==='crop')hint('Geser kotak atau sudutnya');}
+
+/* ---------- crop ---------- */
+function updateCropBox(){const b=$('#crop'),d=cropDraft;b.style.left=d.x*100+'%';b.style.top=d.y*100+'%';b.style.width=d.w*100+'%';b.style.height=d.h*100+'%';}
+function ratioVal(){if(!aspect)return null;if(aspect==='orig'){const [w,h]=[S.src.width,S.src.height];return S.rot%2?h/w:w/h;}return +aspect;}
+function applyAspect(){const r=ratioVal();if(!r)return;const [RW,RH]=rotDims();let w=1,h=RW/(RH*r);if(h>1){h=1;w=RH*r/RW;}cropDraft={x:(1-w)/2,y:(1-h)/2,w,h};}
+
+/* ---------- pointer interaction ---------- */
+const frame=$('#frame'), pts=new Map();let drag=null;
+function pos(e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height,cx:e.clientX,cy:e.clientY,fw:r.width};}
+function hitTest(p){const w=cv.width,h=cv.height;for(let i=S.items.length-1;i>=0;i--){const it=S.items[i];if(it._hw==null)continue;
+ const dx=(p.x-it.x)*w, dy=(p.y-it.y)*h, a=-(it.rot||0), lx=dx*Math.cos(a)-dy*Math.sin(a), ly=dx*Math.sin(a)+dy*Math.cos(a), pad=w*0.03;
+ if(Math.abs(lx)<=it._hw*w+pad&&Math.abs(ly)<=it._hh*w+pad)return i;}return -1;}
+frame.addEventListener('pointerdown',e=>{if(!S.src)return;e.preventDefault();frame.setPointerCapture(e.pointerId);const p=pos(e);pts.set(e.pointerId,p);
+ if(tab==='crop'){if(pts.size>1)return;const d=cropDraft,tol=34/p.fw;
+  const corners=[[d.x,d.y],[d.x+d.w,d.y],[d.x,d.y+d.h],[d.x+d.w,d.y+d.h]];let ci=-1,best=tol;
+  corners.forEach(([x,y],i)=>{const dd=Math.hypot(x-p.x,(y-p.y)*cv.height/cv.width);if(dd<best){best=dd;ci=i;}});
+  if(ci>=0){const o=corners[3-ci];drag={type:'corner',ax:o[0],ay:o[1]};}
+  else if(p.x>=d.x&&p.x<=d.x+d.w&&p.y>=d.y&&p.y<=d.y+d.h)drag={type:'cmove',sx:p.x,sy:p.y,ox:d.x,oy:d.y};
+  return;}
+ if(tab==='brush'){if(pts.size>1){if(drag&&drag.type==='draw'){S.strokes.pop();drag=null;req();}return;}
+  S.strokes.push({k:brushMode,c:brushColor,w:brushMode==='mosaic'||brushMode==='blur'?brushSize*2.5:brushSize,p:[[p.x,p.y]]});drag={type:'draw'};req();return;}
+ if(tab==='beauty'&&beautySel==='spot'){if(pts.size===1){S.strokes.push({k:'heal',w:spotSize,p:[[p.x,p.y]]});commit();req();}return;}
+ if(pts.size===1){const hit=hitTest(p);
+  if(hit>=0){const changed=sel!==hit;sel=hit;const it=S.items[hit];drag={type:'move',sx:p.x,sy:p.y,ox:it.x,oy:it.y};
+   const want=it.type==='text'?'text':'sticker';if(tab!==want)setTab(want);else if(changed)buildTools();}
+  else if(sel>=0){sel=-1;buildTools();drag=null;}
+  req();}
+ else if(pts.size===2&&sel>=0){const [a,b]=[...pts.values()],it=S.items[sel];drag={type:'pinch',d0:Math.hypot(a.cx-b.cx,a.cy-b.cy),a0:Math.atan2(b.cy-a.cy,b.cx-a.cx),s0:it.size,r0:it.rot||0};}
+});
+frame.addEventListener('pointermove',e=>{if(!pts.has(e.pointerId))return;const p=pos(e);pts.set(e.pointerId,p);if(!drag)return;
+ if(drag.type==='cmove'){const d=cropDraft;d.x=Math.min(1-d.w,Math.max(0,drag.ox+p.x-drag.sx));d.y=Math.min(1-d.h,Math.max(0,drag.oy+p.y-drag.sy));updateCropBox();}
+ else if(drag.type==='corner'){const {ax,ay}=drag,sx=p.x>=ax?1:-1,sy=p.y>=ay?1:-1,[RW,RH]=rotDims(),r=ratioVal();
+  let w=Math.max(0.06,Math.abs(p.x-ax)),h=Math.max(0.06,Math.abs(p.y-ay));if(r)h=w*RW/(RH*r);
+  const mW=sx>0?1-ax:ax,mH=sy>0?1-ay:ay;if(w>mW){const f=mW/w;w*=f;if(r)h*=f;}if(h>mH){const f=mH/h;h*=f;if(r)w*=f;}
+  cropDraft={x:sx>0?ax:ax-w,y:sy>0?ay:ay-h,w,h};updateCropBox();}
+ else if(drag.type==='draw'){const st=S.strokes[S.strokes.length-1],l=st.p[st.p.length-1];if(Math.hypot(l[0]-p.x,(l[1]-p.y)*cv.height/cv.width)>0.004){st.p.push([+p.x.toFixed(4),+p.y.toFixed(4)]);req();}}
+ else if(drag.type==='move'&&pts.size===1){const it=S.items[sel];if(!it)return;it.x=Math.min(1,Math.max(0,drag.ox+p.x-drag.sx));it.y=Math.min(1,Math.max(0,drag.oy+p.y-drag.sy));req();}
+ else if(drag.type==='pinch'&&pts.size===2){const [a,b]=[...pts.values()],it=S.items[sel];if(!it)return;
+  it.size=Math.min(0.9,Math.max(0.02,drag.s0*Math.hypot(a.cx-b.cx,a.cy-b.cy)/drag.d0));it.rot=drag.r0+Math.atan2(b.cy-a.cy,b.cx-a.cx)-drag.a0;req();}
+});
+function endPtr(e){if(!pts.has(e.pointerId))return;pts.delete(e.pointerId);
+ if(drag&&(drag.type==='move'||drag.type==='pinch'||drag.type==='draw')){if(pts.size===0){commit();drag=null;if(tab==='sticker'||tab==='text')buildTools();}else if(drag.type==='pinch'){const it=S.items[sel],p=[...pts.values()][0];drag={type:'move',sx:p.x,sy:p.y,ox:it.x,oy:it.y};}}
+ else if(pts.size===0)drag=null;}
+frame.addEventListener('pointerup',endPtr);frame.addEventListener('pointercancel',endPtr);
+frame.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+
+/* ---------- open / save ---------- */
+function openPicker(){$('#file').value='';$('#file').click();}
+$('#bOpen').onclick=openPicker;$('#bOpen2').onclick=openPicker;
+$('#file').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;busy(true);
+ try{const url=URL.createObjectURL(f);const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=url;});
+  const s=Math.min(1,SRC_MAX/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(img.naturalWidth*s);c.height=Math.round(img.naturalHeight*s);
+  const x=c.getContext('2d');x.imageSmoothingQuality='high';x.drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+  S.src=c;resetEdits();sel=-1;aspect=null;cache={key:''};hist=[];fut=[];cur=snap();updHist();
+  $('#empty').style.display='none';$('#frame').style.display='block';$('#panel').classList.remove('off');
+  ['#bSave','#bCmp'].forEach(s=>$(s).disabled=false);
+  if(tab==='crop'){tab='';setTab('crop');}else{buildTools();}cv.width=0;render();
+ }catch(err){alert('Foto tidak bisa dibuka. Coba foto lain.');}
+ busy(false);});
+function busy(on){$('#busy').style.display=on?'flex':'none';}
+let outFile=null, outURL=null;
+$('#bSave').onclick=async()=>{if(!S.src)return;if(tab==='crop')setTab('filter');sel=-1;busy(true);await new Promise(r=>setTimeout(r,30));
+ try{const base=buildBase(SRC_MAX,S.crop),w=base.width,h=base.height,bx=base.getContext('2d',{willReadFrequently:true});const id=bx.getImageData(0,0,w,h),o=new Uint8ClampedArray(id.data);
+  process(id,w,h,cfgS(),{getBlur:()=>boxBlur(o,w,h,blurRad(w,h),3),getSharp:()=>boxBlur(o,w,h,1,1)});bx.putImageData(id,0,0);compose(bx,w,h,false);
+  const blob=await new Promise(r=>base.toBlob(r,'image/jpeg',0.93));
+  outFile=new File([blob],'kilau-'+Date.now()+'.jpg',{type:'image/jpeg'});if(outURL)URL.revokeObjectURL(outURL);outURL=URL.createObjectURL(blob);
+  $('#outImg').src=outURL;$('#out').style.display='flex';
+ }catch(err){alert('Gagal menyimpan: '+err.message);}
+ busy(false);req();};
+$('#bShare').onclick=async()=>{if(!outFile)return;
+ if(navigator.canShare&&navigator.canShare({files:[outFile]})){try{await navigator.share({files:[outFile]});return;}catch(e){if(e.name==='AbortError')return;}}
+ const a=document.createElement('a');a.href=outURL;a.download=outFile.name;document.body.appendChild(a);a.click();a.remove();};
+$('#bOutClose').onclick=()=>{$('#out').style.display='none';};
+$('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
+const cmp=$('#bCmp');
+cmp.addEventListener('pointerdown',e=>{e.preventDefault();showOrig=true;req();});
+['pointerup','pointerleave','pointercancel'].forEach(t=>cmp.addEventListener(t,()=>{if(showOrig){showOrig=false;req();}}));
+
+buildTabs();buildTools();
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
