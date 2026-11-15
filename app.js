@@ -37,6 +37,12 @@ const STICKERS='❤️ 💖 💕 ✨ ⭐ 🌟 💫 🔥 🌸 🌼 🌷 🌹 🦋
 const COLORS=['#ffffff','#111111','#ff4d5e','#ff8a3d','#ffd23f','#5ee07a','#38c9ff','#4d6bff','#b45cff','#ff6fcf','#a0522d','#9aa0a6'];
 const LIPS=['#c2185b','#e53950','#b71c1c','#d8645a','#ad1457','#8e2445','#ff6f91','#a0522d'];
 const BLUSH=['#ff7a8a','#ff9a76','#e86a92','#f4a3a8','#ff6f61'];
+const LOOKS={natural:{n:'Natural',smooth:40,glow:25,slim:15,eyes:10,lips:30,lipC:'#d8645a',blush:22,blushC:'#f4a3a8',teeth:30},
+ korea:{n:'Korea',smooth:62,glow:45,slim:30,eyes:22,nose:20,lips:45,lipC:'#ff6f91',blush:38,blushC:'#ff9a76',teeth:40},
+ glam:{n:'Glam',smooth:50,glow:30,slim:35,eyes:28,nose:25,lips:75,lipC:'#b71c1c',blush:32,blushC:'#e86a92',teeth:50},
+ lembut:{n:'Lembut',smooth:68,glow:50,slim:20,eyes:15,lips:35,lipC:'#e53950',blush:42,blushC:'#f4a3a8',teeth:35},
+ pesta:{n:'Pesta',smooth:55,glow:35,slim:30,eyes:30,nose:20,lips:85,lipC:'#8e2445',blush:30,blushC:'#ff6f61',teeth:60},
+ cowok:{n:'Cowok',smooth:35,glow:12,slim:22,eyes:0,lips:0,blush:0,teeth:40}};
 const BGCOL=['#ffffff','#111111','#f4e1d2','#ffd6e0','#cde7ff','#d8f5d0','#fff2a8','#e0d4ff','#ff4d5e','#4d6bff'];
 const GRADS=[['#ff9a9e','#fad0c4'],['#a18cd1','#fbc2eb'],['#84fab0','#8fd3f4'],['#fccb90','#d57eeb'],['#30cfd0','#330867'],['#000000','#434343']];
 const FONTS=[['Sans','800','-apple-system,"Helvetica Neue",Arial,sans-serif'],['Serif','700','Georgia,"Times New Roman",serif'],['Tegas','900','"Arial Black","Helvetica Neue",Impact,sans-serif'],['Tulis','400','"Snell Roundhand","Brush Script MT","Segoe Script",cursive'],['Mesin','700','"Courier New",Courier,monospace'],['Bulat','800','"Arial Rounded MT Bold","Avenir Next",Verdana,sans-serif']];
@@ -61,7 +67,7 @@ const S={src:null};
 function freshEdits(){return {rot:0,flip:false,straight:0,crop:null,adj:Object.fromEntries(ADJ.map(a=>[a[0],0])),filter:'asli',fstr:100,
  beauty:{smooth:0,glow:0},face:{slim:0,eyes:0,nose:0,lips:0,lipC:LIPS[0],blush:0,blushC:BLUSH[0],teeth:0},
  fx:Object.fromEntries(FX.map(f=>[f[0],0])),date:false,bg:{mode:'none',amt:60,color:'#ffffff',grad:0},
- body:{tall:0,y0:50},warps:[],items:[],strokes:[],frame:'none',canvas:{ratio:'none',bg:'blur'},seed:(Math.random()*1e9)|0};}
+ body:{tall:0,y0:50},warps:[],items:[],strokes:[],frame:'none',canvas:{ratio:'none',bg:'blur'},seed:(Math.random()*1e9)|0,srcIdx:0};}
 function resetEdits(){Object.assign(S,freshEdits());}
 resetEdits();
 let tab='filter', sel=-1, showOrig=false, cropDraft=null, aspect=null;
@@ -71,10 +77,10 @@ let LAYOUT={ox:0,oy:0,iw:1,ih:1};
 
 /* ================= HISTORY ================= */
 let hist=[], fut=[], cur=null;
-const KEYS=['rot','flip','straight','crop','adj','filter','fstr','beauty','face','fx','date','bg','body','warps','strokes','frame','canvas','seed'];
+const KEYS=['srcIdx','rot','flip','straight','crop','adj','filter','fstr','beauty','face','fx','date','bg','body','warps','strokes','frame','canvas','seed'];
 function snap(){const o={};for(const k of KEYS)o[k]=S[k];o.items=S.items.map(({_hw,_hh,...r})=>r);return JSON.stringify(o);}
 function commit(){const s=snap();if(s===cur)return;if(cur)hist.push(cur);if(hist.length>60)hist.shift();cur=s;fut=[];updHist();}
-function restore(s){Object.assign(S,JSON.parse(s));sel=-1;if(tab==='crop')cropDraft=S.crop?{...S.crop}:{x:0,y:0,w:1,h:1};buildTools();req();}
+function restore(s){Object.assign(S,JSON.parse(s));S.src=SRCS[S.srcIdx||0]||SRCS[0];sel=-1;if(tab==='crop')cropDraft=S.crop?{...S.crop}:{x:0,y:0,w:1,h:1};buildTools();req();}
 function undo(){if(!hist.length)return;fut.push(cur);cur=hist.pop();restore(cur);updHist();}
 function redo(){if(!fut.length)return;hist.push(cur);cur=fut.pop();restore(cur);updHist();}
 function updHist(){$('#bUndo').disabled=!hist.length;$('#bRedo').disabled=!fut.length;}
@@ -106,27 +112,33 @@ function process(id,w,h,cfg,opt){
  const d=id.data, f=FILTERS.find(x=>x.id===cfg.filter)||FILTERS[0], k=cfg.fstr/100, fx=cfg.fx||{};
  const P={};for(const a of ADJ)P[a[0]]=(cfg.adj[a[0]]||0)+(f.p[a[0]]||0)*k;
  const ret=(fx.retro||0)/100;P.warm+=14*ret;P.fade+=22*ret;P.grain+=26*ret;
- const FL=Math.min(1,(fx.flash||0)/100+ret*0.7), HZ=(fx.haze||0)/100;
+ const FL=Math.min(1,(fx.flash||0)/100+ret*0.7), HZ=(fx.haze||0)/100, fc=cfg.flashC||{x:0.5,y:0.42,r:0.32};
+ const fcx=fc.x*w, fcy=fc.y*h, fs2=Math.pow(fc.r*Math.max(w,h),2);
  const mono=f.mono?k:0, hi=(f.hi||[0,0,0]).map(v=>v*k), sh=(f.sh||[0,0,0]).map(v=>v*k);
  const n=w*h*4;
  const sm=(cfg.beauty.smooth||0)/100, gl=(cfg.beauty.glow||0)/100;
  if((sm>0||gl>0)&&opt.getBlur){const bl=opt.getBlur();
+  const fine=opt.getSharp?opt.getSharp():null, sk=opt.skin;
   for(let i=0;i<n;i+=4){const r=d[i],g=d[i+1],b=d[i+2];
    const cb=128-0.168736*r-0.331264*g+0.5*b, cr=128+0.5*r-0.418688*g-0.081312*b;
-   const s=soft(cb,77,127)*soft(cr,133,173); if(s<=0)continue;
+   let s;
+   if(sk){s=sk[i>>2]/255;if(s<=0.01)continue;s*=0.3+0.7*soft(cb,72,132)*soft(cr,128,178);}
+   else{s=soft(cb,77,127)*soft(cr,133,173);if(s<=0)continue;}
    const br=bl[i],bg=bl[i+1],bb=bl[i+2];
-   const diff=(Math.abs(br-r)+Math.abs(bg-g)+Math.abs(bb-b))/3, e=diff>34?0:1-diff/34;
-   const a=sm*s*e*0.96;
+   const diff=(Math.abs(br-r)+Math.abs(bg-g)+Math.abs(bb-b))/3, q=diff/15, e=1/(1+q*q*q);
+   const a=Math.min(1,sm*1.15)*s*e;
    let R=r+(br-r)*a, G=g+(bg-g)*a, B=b+(bb-b)*a;
-   if(gl>0){const t=gl*s*0.32;R+=(255-R)*t*0.62;G+=(255-G)*t*0.56;B+=(255-B)*t*0.52;}
+   if(fine){const t=a*(0.55-0.25*sm);R+=(r-fine[i])*t;G+=(g-fine[i+1])*t;B+=(b-fine[i+2])*t;}
+   if(sm>0){const red=R-(G+B)/2-28;if(red>0){const k=red*0.35*sm*s;R-=k;G+=k*0.25;}}
+   if(gl>0){const t=gl*s*0.3;R+=(255-R)*t*0.56;G+=(255-G)*t*0.47;B+=(255-B)*t*0.46;}
    d[i]=R;d[i+1]=G;d[i+2]=B;}}
  if(P.clarity&&opt.getBlur){const bl=opt.getBlur(), am=P.clarity>0?P.clarity/100*1.1:P.clarity/100*0.8;
   for(let i=0;i<n;i+=4){d[i]+=(d[i]-bl[i])*am;d[i+1]+=(d[i+1]-bl[i+1])*am;d[i+2]+=(d[i+2]-bl[i+2])*am;}}
  if(P.sharp>0&&opt.getSharp){const bl=opt.getSharp(), am=P.sharp/100*1.6;
   for(let i=0;i<n;i+=4){d[i]+=(d[i]-bl[i])*am;d[i+1]+=(d[i+1]-bl[i+1])*am;d[i+2]+=(d[i+2]-bl[i+2])*am;}}
  const B=P.bright*0.9, sat=1+P.sat/100;
- let cf=P.contrast>=0?1+P.contrast/100*1.3:1+P.contrast/100*0.85; cf*=1+0.3*FL;
- const W=P.warm*0.45, T=P.tint*0.4, F=P.fade/100, V=P.vig/100+0.45*FL, G=P.grain, HL=P.highl/100, SH=P.shadow/100;
+ let cf=P.contrast>=0?1+P.contrast/100*1.3:1+P.contrast/100*0.85; cf*=1+0.22*FL;
+ const W=P.warm*0.45, T=P.tint*0.4, F=P.fade/100, V=P.vig/100+0.2*FL, G=P.grain, HL=P.highl/100, SH=P.shadow/100;
  const cx=w/2, cy=h/2, md=cx*cx+cy*cy, toned=hi[0]||hi[1]||hi[2]||sh[0]||sh[1]||sh[2];
  const gs=Math.max(1,Math.round(Math.max(w,h)/1100));
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const i=(y*w+x)*4;
@@ -142,13 +154,18 @@ function process(id,w,h,cfg,opt){
   if(toned){const l=L<0?0:L>255?1:L/255, m=1-l;r+=hi[0]*l+sh[0]*m;g+=hi[1]*l+sh[1]*m;b+=hi[2]*l+sh[2]*m;}
   if(F){r=r*(1-F*0.22)+F*38;g=g*(1-F*0.22)+F*38;b=b*(1-F*0.22)+F*38;}
   if(V||FL){const dd=((x-cx)*(x-cx)+(y-cy)*(y-cy))/md;
-   if(FL){let hot=1-dd*1.5;if(hot>0){hot*=hot*FL;r=r*(1+0.45*hot)+38*hot;g=g*(1+0.45*hot)+38*hot;b=b*(1+0.5*hot)+46*hot;}b+=8*FL;r-=3*FL;}
+   if(FL){const ex=x-fcx, ey=y-fcy, hot=Math.exp(-(ex*ex+ey*ey)/fs2), k=FL*hot, fall=1-FL*0.42*(1-hot);
+    r=r*fall*(1+0.24*k)+20*k;g=g*fall*(1+0.24*k)+21*k;b=b*fall*(1+0.28*k)+27*k;
+    const L2=0.299*r+0.587*g+0.114*b;if(L2>195){const sp=Math.min(1,(L2-195)/60)*FL*0.4;r+=(255-r)*sp;g+=(255-g)*sp;b+=(255-b)*sp;}
+    b+=7*FL;r-=2*FL;}
    if(V){const m=1-Math.min(0.95,V*0.8*dd*Math.sqrt(dd));r*=m;g*=m;b*=m;}}
   if(HZ){const t=HZ*0.32*(0.55+0.45*y/h);r=r*(1-t)+235*t;g=g*(1-t)+238*t;b=b*(1-t)+242*t;}
   if(G){const q=(hash((x/gs)|0,(y/gs)|0)-0.5)*G*0.9;r+=q;g+=q;b+=q;}
   d[i]=r;d[i+1]=g;d[i+2]=b;}
 }
-const cfgS=()=>({adj:S.adj,filter:S.filter,fstr:S.fstr,beauty:S.beauty,fx:S.fx});
+function flashCenter(faces){if(!faces||!faces.length)return null;let x=0,y=0,r=0;for(const f of faces){x+=f[1].x;y+=f[1].y;r=Math.max(r,Math.hypot(f[454].x-f[234].x,f[454].y-f[234].y));}
+ return {x:x/faces.length,y:y/faces.length,r:Math.max(0.22,r*1.25)};}
+const cfgS=faces=>({adj:S.adj,filter:S.filter,fstr:S.fstr,beauty:S.beauty,fx:S.fx,flashC:flashCenter(faces)});
 
 /* ================= GEOMETRY ================= */
 function rotDims(){const q=S.rot%2!==0;return q?[S.src.height,S.src.width]:[S.src.width,S.src.height];}
@@ -222,30 +239,57 @@ function drawMakeup(cx,w,h,faces,F){
  }
 }
 
+const OVAL=[10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+const EYE_L=[33,246,161,160,159,158,157,173,133,155,154,153,145,144,163,7], EYE_R=[362,398,384,385,386,387,388,466,263,249,390,373,374,380,381,382];
+const BROW_L=[70,63,105,66,107,55,65,52,53,46], BROW_R=[300,293,334,296,336,285,295,282,283,276], NOSTR=[];
+function skinMask(w,h,faces,seg){const m=mk(w,h), x=m.getContext('2d',{willReadFrequently:true}), OFF=w+500;
+ if(seg){x.fillStyle='#fff';x.fillRect(0,0,w,h);}
+ const poly=(pts,sc)=>{let cx=0,cy=0;pts.forEach(p=>{cx+=p.x;cy+=p.y;});cx/=pts.length;cy/=pts.length;x.beginPath();pts.forEach((p,i)=>{const X=cx+(p.x-cx)*sc+OFF, Y=cy+(p.y-cy)*sc;i?x.lineTo(X,Y):x.moveTo(X,Y);});x.closePath();x.fill();};
+ for(const f of faces){const P=i=>({x:f[i].x*w,y:f[i].y*h}), fw=dist(P(234),P(454));
+  x.save();x.translate(-OFF,0);x.shadowOffsetX=OFF;x.fillStyle=x.shadowColor='#fff';x.shadowBlur=fw*0.05;if(!seg)poly(OVAL.map(P),0.97);
+  x.globalCompositeOperation='destination-out';x.shadowBlur=fw*0.025;
+  poly(EYE_L.map(P),1.7);poly(EYE_R.map(P),1.7);poly(BROW_L.map(P),1.35);poly(BROW_R.map(P),1.35);poly(LO.map(P),1.18);x.restore();}
+ const d=x.getImageData(0,0,w,h).data, out=new Uint8Array(w*h);
+ if(seg){const sx=seg.w/w, sy=seg.h/h, same=seg.w===w&&seg.h===h;for(let y=0;y<h;y++)for(let X=0;X<w;X++){const i=y*w+X, v=same?seg.skin[i]:seg.skin[Math.min(seg.h-1,(y*sy)|0)*seg.w+Math.min(seg.w-1,(X*sx)|0)];let t=(v-0.2)/0.6;t=t<0?0:t>1?1:t;out[i]=d[i*4+3]*t;}}
+ else for(let i=0;i<out.length;i++)out[i]=d[i*4+3];return out;}
 /* ================= AI (MediaPipe, disimpan lokal di folder ai/) ================= */
 const AI={vision:null,fileset:null,face:null,seg:null};
 async function aiFileset(){if(!AI.vision)AI.vision=await import('./vision_bundle.js');if(!AI.fileset)AI.fileset=await AI.vision.FilesetResolver.forVisionTasks(new URL('.',location.href).href.replace(/\/$/,''));return AI.fileset;}
 async function aiFace(){if(AI.face)return AI.face;const fs=await aiFileset();
  AI.face=await AI.vision.FaceLandmarker.createFromOptions(fs,{baseOptions:{modelAssetPath:new URL('face_landmarker.task',location.href).href,delegate:'CPU'},runningMode:'IMAGE',numFaces:4});return AI.face;}
 async function aiSeg(){if(AI.seg)return AI.seg;const fs=await aiFileset();
- AI.seg=await AI.vision.ImageSegmenter.createFromOptions(fs,{baseOptions:{modelAssetPath:new URL('selfie_segmenter.tflite',location.href).href,delegate:'CPU'},runningMode:'IMAGE',outputConfidenceMasks:true,outputCategoryMask:false});return AI.seg;}
+ AI.seg=await AI.vision.ImageSegmenter.createFromOptions(fs,{baseOptions:{modelAssetPath:new URL('selfie_multiclass_256x256.tflite',location.href).href,delegate:'CPU'},runningMode:'IMAGE',outputConfidenceMasks:true,outputCategoryMask:false});return AI.seg;}
 let FACE={key:'',faces:null,status:'idle'}, MASK={key:'',mask:null,status:'idle'};
-function needFace(){const F=S.face;return F.slim>0||F.eyes>0||F.nose>0||F.lips>0||F.blush>0||F.teeth>0;}
+function needSeg(){return S.bg.mode!=='none'||S.beauty.smooth>0||S.beauty.glow>0;}
+function needFace(){const F=S.face;return S.beauty.smooth>0||S.beauty.glow>0||(S.fx.flash||0)>0||(S.fx.retro||0)>0||F.slim>0||F.eyes>0||F.nose>0||F.lips>0||F.blush>0||F.teeth>0;}
 function aiNote(t){const n=$('#aiNote');if(n)n.textContent=t;}
 function requestFace(key,canvas){if(FACE.key===key&&FACE.status!=='idle')return;FACE={key,faces:null,status:'loading'};aiNote('Memuat AI wajah… (sekali saja)');
  aiFace().then(lm=>{if(FACE.key!==key)return;const r=lm.detect(canvas);FACE.faces=(r.faceLandmarks||[]).filter(f=>f.length>=478);FACE.status=FACE.faces.length?'ready':'none';
   aiNote(FACE.faces.length?`AI wajah aktif (${FACE.faces.length} wajah)`:'Wajah tidak terdeteksi di foto ini');req();})
  .catch(e=>{console.error(e);FACE.status='error';aiNote('AI wajah gagal dimuat. Buka sekali saat online.');});}
-async function segmentCanvas(canvas){const seg=await aiSeg();const r=seg.segment(canvas);const m=r.confidenceMasks[0];
- const out={w:m.width,h:m.height,data:m.getAsFloat32Array().slice()};try{r.close&&r.close();}catch(e){}return out;}
-function requestMask(key,canvas){if(MASK.key===key&&MASK.status!=='idle')return;MASK={key,mask:null,status:'loading'};aiNote('Memuat AI latar… (sekali saja)');
- segmentCanvas(canvas).then(m=>{if(MASK.key!==key)return;MASK.mask=m;MASK.status='ready';aiNote('AI latar aktif');req();})
+function boxF(src,w,h,r){const t=new Float32Array(w*h), o=new Float32Array(w*h), dv=2*r+1;
+ for(let y=0;y<h;y++){const row=y*w;let a=0;for(let k=-r;k<=r;k++)a+=src[row+clamp(k,0,w-1)];for(let x=0;x<w;x++){t[row+x]=a/dv;a+=src[row+Math.min(w-1,x+r+1)]-src[row+Math.max(0,x-r)];}}
+ for(let x=0;x<w;x++){let a=0;for(let k=-r;k<=r;k++)a+=t[clamp(k,0,h-1)*w+x];for(let y=0;y<h;y++){o[y*w+x]=a/dv;a+=t[Math.min(h-1,y+r+1)*w+x]-t[Math.max(0,y-r)*w+x];}}return o;}
+function guided(I,p,w,h,r,eps){const n=w*h, Ip=new Float32Array(n), II=new Float32Array(n);for(let i=0;i<n;i++){Ip[i]=I[i]*p[i];II[i]=I[i]*I[i];}
+ const mI=boxF(I,w,h,r), mP=boxF(p,w,h,r), mIp=boxF(Ip,w,h,r), mII=boxF(II,w,h,r), A=new Float32Array(n), B=new Float32Array(n);
+ for(let i=0;i<n;i++){const v=mII[i]-mI[i]*mI[i], cv=mIp[i]-mI[i]*mP[i];A[i]=cv/(v+eps);B[i]=mP[i]-A[i]*mI[i];}
+ const mA=boxF(A,w,h,r), mB=boxF(B,w,h,r), q=new Float32Array(n);for(let i=0;i<n;i++){const v=mA[i]*I[i]+mB[i];q[i]=v<0?0:v>1?1:v;}return q;}
+async function segmentCanvas(canvas){const seg=await aiSeg();const r=seg.segment(canvas);const M=r.confidenceMasks, w=M[0].width, h=M[0].height, n=w*h;
+ const bg=M[0].getAsFloat32Array(), bs=M[2].getAsFloat32Array(), fsk=M[3].getAsFloat32Array();
+ const person=new Float32Array(n), skin=new Float32Array(n);for(let i=0;i<n;i++){person[i]=1-bg[i];skin[i]=Math.min(1,bs[i]+fsk[i]);}
+ try{r.close&&r.close();}catch(e){}
+ // haluskan tepi orang mengikuti detail foto (guided filter) supaya rambut & tepi rapi
+ let refined=person;try{const g=ctx2(canvas).getImageData(0,0,w,h).data, I=new Float32Array(n);for(let i=0;i<n;i++)I[i]=(0.299*g[i*4]+0.587*g[i*4+1]+0.114*g[i*4+2])/255;
+  refined=guided(I,person,w,h,Math.max(2,Math.round(Math.min(w,h)*0.012)),0.0008);}catch(e){console.error(e);}
+ return {w,h,data:refined,skin};}
+function requestMask(key,canvas){if(MASK.key===key&&MASK.status!=='idle')return;MASK={key,mask:null,status:'loading'};aiNote('Memuat AI kulit & latar… (sekali saja)');
+ segmentCanvas(canvas).then(m=>{if(MASK.key!==key)return;MASK.mask=m;MASK.status='ready';aiNote('AI kulit & latar aktif');req();})
  .catch(e=>{console.error(e);MASK.status='error';aiNote('AI latar gagal dimuat. Buka sekali saat online.');});}
 
 /* ================= BACKGROUND ================= */
 function maskAt(mask,w,h){ // returns function(index)->0..1
  const same=mask.w===w&&mask.h===h, md=mask.data, sx=mask.w/w, sy=mask.h/h;
- return (x,y)=>{let v=same?md[y*w+x]:md[Math.min(mask.h-1,(y*sy)|0)*mask.w+Math.min(mask.w-1,(x*sx)|0)];v=(v-0.25)/0.5;return v<0?0:v>1?1:v;};}
+ return (x,y)=>{let v=same?md[y*w+x]:md[Math.min(mask.h-1,(y*sy)|0)*mask.w+Math.min(mask.w-1,(x*sx)|0)];v=(v-0.12)/0.76;return v<0?0:v>1?1:v;};}
 function applyBg(d,w,h,mask,bg,getBlur){
  const M=maskAt(mask,w,h);let bl=null, col=null, g1=null, g2=null;
  if(bg.mode==='blur')bl=getBlur();if(bg.mode==='color')col=hex(bg.color);if(bg.mode==='grad'){g1=hex(GRADS[bg.grad][0]);g2=hex(GRADS[bg.grad][1]);}
@@ -356,10 +400,12 @@ function buildStage(geoC,faces){
  for(const o of S.warps)warp(id.data,w,h,o.t==='push'?{t:'push',x:o.x*w,y:o.y*h,dx:o.dx*w,dy:o.dy*h,r:o.r*w}:{t:'bulge',x:o.x*w,y:o.y*h,r:o.r*w,s:o.s});
  return {data:id,w,h};}
 function stageCanvas(st){const c=mk(st.w,st.h);c.getContext('2d').putImageData(st.data,0,0);return c;}
-function finishImage(st,mask,preview,light){
+function finishImage(st,mask,preview,light,faces){
  const {w,h}=st, id=new ImageData(new Uint8ClampedArray(st.data.data),w,h);
- if(mask&&S.bg.mode!=='splash')applyBg(id.data,w,h,mask,S.bg,()=>{const r=Math.max(3,Math.round(Math.min(w,h)*(0.006+S.bg.amt/100*0.03)));if(st.bgR!==r){st.bgR=r;st.bgBlur=boxBlur(st.data.data,w,h,r,3);}return st.bgBlur;});
- process(id,w,h,cfgS(),{getBlur:()=>st.blur||(st.blur=boxBlur(st.data.data,w,h,blurRad(w,h),3)),getSharp:()=>st.sblur||(st.sblur=boxBlur(st.data.data,w,h,1,1))});
+ if(mask&&S.bg.mode!=='none'&&S.bg.mode!=='splash')applyBg(id.data,w,h,mask,S.bg,()=>{const r=Math.max(3,Math.round(Math.min(w,h)*(0.006+S.bg.amt/100*0.03)));if(st.bgR!==r){st.bgR=r;st.bgBlur=boxBlur(st.data.data,w,h,r,3);}return st.bgBlur;});
+ const wantSkin=S.beauty.smooth||S.beauty.glow, sg=mask&&mask.skin?mask:null;
+ const skin=wantSkin&&(sg||(faces&&faces.length))?((st.skinFor===sg&&st.skin)||(st.skinFor=sg,st.skin=skinMask(w,h,faces||[],sg))):null;
+ process(id,w,h,cfgS(faces),{skin,getBlur:()=>st.blur||(st.blur=boxBlur(st.data.data,w,h,blurRad(w,h),3)),getSharp:()=>st.sblur||(st.sblur=boxBlur(st.data.data,w,h,1,1))});
  if(mask&&S.bg.mode==='splash')splash(id.data,w,h,mask);
  const c=mk(w,h), cx=ctx2(c);cx.putImageData(id,0,0);
  if(!light){applyFx(cx,w,h,S.fx,id,S.seed,S.date);drawStrokes(cx,w,h);drawItems(cx,w,h,preview);}
@@ -377,24 +423,26 @@ function finalize(img){
 
 /* ---- preview caches ---- */
 let GEO={key:''}, STG={key:''};
-function geoKey(crop){return [S.rot,S.flip,S.straight,JSON.stringify(crop)].join('|');}
-function getGeo(){const crop=tab==='crop'?null:S.crop, key=geoKey(crop);if(GEO.key!==key){GEO={key,base:buildBase(PREV_MAX,crop)};thumbsKey='';}return GEO;}
+function geoKey(crop){return [S.srcIdx,S.rot,S.flip,S.straight,JSON.stringify(crop)].join('|');}
+let dragging=false;
+function getGeo(){const crop=tab==='crop'?null:S.crop, gk=geoKey(crop), size=dragging?620:PREV_MAX, key=gk+'@'+size;if(GEO.key!==key){GEO={key,gk,base:buildBase(size,crop)};if(!dragging)thumbsKey='';}return GEO;}
 function getStage(geo){
  let faces=null;
- if(needFace()&&tab!=='crop'){requestFace(geo.key,geo.base);if(FACE.key===geo.key&&FACE.status==='ready')faces=FACE.faces;}
+ if(needFace()&&tab!=='crop'){if(!dragging||FACE.key!==geo.gk)requestFace(geo.gk,geo.base);if(FACE.key===geo.gk&&FACE.status==='ready')faces=FACE.faces;}
  const key=geo.key+'#'+(tab==='crop'?'plain':stageKeyParts()+(faces?'F':''));
- if(STG.key!==key){STG=tab==='crop'?(()=>{const c=ctx2(geo.base);return {data:c.getImageData(0,0,geo.base.width,geo.base.height),w:geo.base.width,h:geo.base.height};})():buildStage(geo.base,faces);STG.key=key;}
+ const mkey=geo.gk+'#'+stageKeyParts()+(faces?'F':'');
+ if(STG.key!==key){STG=tab==='crop'?(()=>{const c=ctx2(geo.base);return {data:c.getImageData(0,0,geo.base.width,geo.base.height),w:geo.base.width,h:geo.base.height};})():buildStage(geo.base,faces);STG.key=key;STG.mkey=mkey;STG.faces=faces;}
  return STG;}
 function render(){if(!S.src)return;
  const geo=getGeo(), st=getStage(geo);let mask=null;
- if(tab!=='crop'&&S.bg.mode!=='none'){requestMask(st.key,stageCanvas(st));if(MASK.key===st.key&&MASK.status==='ready')mask=MASK.mask;}
+ if(tab!=='crop'&&needSeg()){if(!dragging||MASK.key!==st.mkey)requestMask(st.mkey,stageCanvas(st));if(MASK.key===st.mkey&&MASK.status==='ready')mask=MASK.mask;}
  if(showOrig){setCv(geo.base.width,geo.base.height);ctx.drawImage(geo.base,0,0);LAYOUT={ox:0,oy:0,iw:geo.base.width,ih:geo.base.height};return;}
- const img=finishImage(st,mask,true,tab==='crop');
+ const img=finishImage(st,mask,true,tab==='crop',st.faces);
  const fin=tab==='crop'?{canvas:img,ox:0,oy:0,iw:img.width,ih:img.height}:finalize(img);
  setCv(fin.canvas.width,fin.canvas.height);ctx.clearRect(0,0,cv.width,cv.height);ctx.drawImage(fin.canvas,0,0);LAYOUT=fin;
  if(tab==='crop')updateCropBox();
  const gd=$('#guide');if(tab==='shape'&&shapeSel==='tall'){gd.style.display='block';gd.style.top=((fin.oy+(S.body.y0/100)*geo.base.height)/fin.canvas.height*100)+'%';}else gd.style.display='none';
- if(tab==='filter')renderThumbs();}
+ if(tab==='filter'&&!dragging)renderThumbs();}
 function setCv(w,h){if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;fit();}}
 let raf=0;function req(){if(!raf)raf=requestAnimationFrame(()=>{raf=0;try{render();}catch(e){console.error(e);}});}
 function fit(){if(!cv.width)return;const st=$('#stage'),sw=st.clientWidth-20,sh=st.clientHeight-20,s=Math.min(sw/cv.width,sh/cv.height);const fr=$('#frame');fr.style.width=Math.floor(cv.width*s)+'px';fr.style.height=Math.floor(cv.height*s)+'px';}
@@ -403,11 +451,11 @@ let hintT=0;function hint(t){const e=$('#hint');e.textContent=t;e.style.opacity=
 
 /* ---- full-resolution render for saving ---- */
 async function renderFull(){
- const geo=buildBase(SRC_MAX,S.crop), key=geoKey(S.crop);let faces=null;
+ const geo=buildBase(SRC_MAX,S.crop), key=geoKey(S.crop);let faces=null;dragging=false;
  if(needFace()){if(!(FACE.key===key&&FACE.status==='ready')){requestFace(key,buildBase(PREV_MAX,S.crop));await waitFor(()=>FACE.key===key&&FACE.status!=='loading');}if(FACE.status==='ready')faces=FACE.faces;}
  const st=buildStage(geo,faces);let mask=null;
- if(S.bg.mode!=='none'){try{mask=await segmentCanvas(stageCanvas(st));}catch(e){console.error(e);}}
- return finalize(finishImage(st,mask,false,false)).canvas;}
+ if(needSeg()){try{mask=await segmentCanvas(stageCanvas(st));}catch(e){console.error(e);}}
+ return finalize(finishImage(st,mask,false,false,faces)).canvas;}
 function waitFor(f){return new Promise(r=>{const t=setInterval(()=>{if(f()){clearInterval(t);r();}},100);setTimeout(()=>{clearInterval(t);r();},30000);});}
 
 /* ================= FILTER THUMBNAILS ================= */
@@ -421,8 +469,8 @@ function el(html){const d=document.createElement('div');d.innerHTML=html.trim();
 function slider(label,min,max,val,oninput,onchange){
  const r=el(`<div class="row"><span class="lbl">${label}</span><input type="range" min="${min}" max="${max}" step="1" value="${val}"><span class="val">${Math.round(val)}</span></div>`);
  const i=r.querySelector('input'),v=r.querySelector('.val');
- i.addEventListener('input',()=>{v.textContent=i.value;oninput(+i.value);});
- i.addEventListener('change',()=>{(onchange||commit)();});
+ i.addEventListener('input',()=>{dragging=true;v.textContent=i.value;oninput(+i.value);});
+ i.addEventListener('change',()=>{dragging=false;(onchange||commit)();req();});
  i.addEventListener('dblclick',()=>{const z=min<0?0:min;i.value=z;v.textContent=z;oninput(z);(onchange||commit)();});
  return r;}
 function chips(list,on,cb,opts={}){const c=document.createElement('div');c.className='chips';
@@ -458,18 +506,19 @@ function buildTools(){const T=$('#tools');T.innerHTML='';T.scrollTop=0;
   T.append(rowOf(btn((S.date?'☑':'☐')+' Cap Tanggal',e=>{S.date=!S.date;e.target.textContent=(S.date?'☑':'☐')+' Cap Tanggal';commit();req();}),btn('Hapus semua efek',()=>{for(const f of FX)S.fx[f[0]]=0;S.date=false;commit();buildTools();req();})));}
  else if(tab==='beauty'){
   const box=document.createElement('div');
-  const L=[['auto','✨ Otomatis'],['smooth','Haluskan'],['glow','Cerahkan'],['spot','Hapus Noda'],['slim','Wajah Tirus','pro'],['eyes','Mata Besar','pro'],['nose','Hidung Ramping','pro'],['lips','Lipstik','pro'],['blush','Perona','pro'],['teeth','Gigi Putih','pro']];
+  const L=[['enhance','AI Enhance','pro'],['auto','✨ Gaya'],['smooth','Haluskan'],['glow','Cerahkan'],['spot','Hapus Noda'],['slim','Wajah Tirus','pro'],['eyes','Mata Besar','pro'],['nose','Hidung Ramping','pro'],['lips','Lipstik','pro'],['blush','Perona','pro'],['teeth','Gigi Putih','pro']];
   const val=id=>id in S.beauty?S.beauty[id]:S.face[id];
   const setv=(id,v)=>{if(id in S.beauty)S.beauty[id]=v;else S.face[id]=v;};
   const mkS=()=>{box.innerHTML='';
-   if(beautySel==='auto'){box.append(note('Satu ketuk: haluskan, cerahkan, wajah tirus & mata besar.'),rowOf(btn('Terapkan Cantik Otomatis',()=>{S.beauty.smooth=55;S.beauty.glow=35;S.face.slim=35;S.face.eyes=25;commit();buildTools();req();},'btn sm primary'),btn('Reset Cantik',()=>{S.beauty={smooth:0,glow:0};Object.assign(S.face,{slim:0,eyes:0,nose:0,lips:0,blush:0,teeth:0});S.strokes=S.strokes.filter(s=>s.k!=='heal');commit();buildTools();req();})));return;}
+   if(beautySel==='enhance'){box.append(slider('Kekuatan',20,100,enhStrength,v=>{enhStrength=v;},()=>{}),rowOf(btn('✨ Jalankan AI Enhance',aiEnhance,'btn sm primary')),note('Perbaiki wajah: lebih tajam, kulit mulus, mata jernih. Pertama kali unduh ±75 MB.',true));return;}
+   if(beautySel==='auto'){box.append(chips(Object.keys(LOOKS).map(k=>[k,LOOKS[k].n]),null,k=>{const L=LOOKS[k];S.beauty={smooth:L.smooth,glow:L.glow};Object.assign(S.face,{slim:L.slim,eyes:L.eyes,nose:L.nose||0,lips:L.lips,lipC:L.lipC||S.face.lipC,blush:L.blush,blushC:L.blushC||S.face.blushC,teeth:L.teeth});commit();req();aiNote('Gaya '+L.n+' diterapkan');}),note('Satu ketuk: kulit, bentuk wajah & makeup sekaligus.',true),rowOf(btn('Reset Cantik',()=>{S.beauty={smooth:0,glow:0};Object.assign(S.face,{slim:0,eyes:0,nose:0,lips:0,blush:0,teeth:0});S.strokes=S.strokes.filter(s=>s.k!=='heal');commit();buildTools();req();})));return;}
    if(beautySel==='spot'){box.append(slider('Ukuran',1,12,Math.round(spotSize*100),v=>{spotSize=v/100;},()=>{}),note('Ketuk jerawat / noda di foto untuk menghilangkannya.'));return;}
    const lab=L.find(x=>x[0]===beautySel)[1];
    box.append(slider(lab,0,100,val(beautySel),v=>{setv(beautySel,v);req();}));
    if(beautySel==='lips')box.append(swatches(LIPS,S.face.lipC,c=>{S.face.lipC=c;if(!S.face.lips)S.face.lips=60;commit();mkS();req();}));
    if(beautySel==='blush')box.append(swatches(BLUSH,S.face.blushC,c=>{S.face.blushC=c;if(!S.face.blush)S.face.blush=55;commit();mkS();req();}));
-   if(['smooth','glow'].includes(beautySel))box.append(note('Otomatis mendeteksi area kulit.'));else box.append(note(aiStatusText('face'),true));};
-  T.append(chips(L,beautySel,id=>{beautySel=id;mkS();if(!['auto','smooth','glow','spot'].includes(id)&&!val(id)){setv(id,id==='lips'?60:id==='blush'?55:40);commit();req();mkS();}}),box);mkS();}
+   box.append(note(['smooth','glow'].includes(beautySel)?(MASK.status==='ready'?'AI kulit aktif':MASK.status==='loading'?'Memuat AI kulit… (sekali saja)':'AI mendeteksi kulit wajah & badan'):aiStatusText('face'),true));};
+  T.append(chips(L,beautySel,id=>{beautySel=id;mkS();if(!['enhance','auto','smooth','glow','spot'].includes(id)&&!val(id)){setv(id,id==='lips'?60:id==='blush'?55:40);commit();req();mkS();}}),box);mkS();}
  else if(tab==='bg'){
   const box=document.createElement('div');
   const mkS=()=>{box.innerHTML='';const m=S.bg.mode;
@@ -593,7 +642,7 @@ function fileToCanvas(f,max=SRC_MAX){return new Promise((res,rej)=>{const url=UR
  i.onerror=e=>{URL.revokeObjectURL(url);rej(e);};i.src=url;});}
 function loadCanvas(c,keep){
  if(Math.max(c.width,c.height)>SRC_MAX){const s=SRC_MAX/Math.max(c.width,c.height), d=mk(c.width*s,c.height*s);d.getContext('2d').drawImage(c,0,0,d.width,d.height);c=d;}
- S.src=c;const k=keep||{};resetEdits();Object.assign(S,k);sel=-1;aspect=null;GEO={key:''};STG={key:''};FACE={key:'',faces:null,status:'idle'};MASK={key:'',mask:null,status:'idle'};
+ S.src=c;SRCS=[c];const k=keep||{};resetEdits();Object.assign(S,k);sel=-1;aspect=null;GEO={key:''};STG={key:''};FACE={key:'',faces:null,status:'idle'};MASK={key:'',mask:null,status:'idle'};
  hist=[];fut=[];cur=snap();updHist();
  $('#empty').style.display='none';$('#frame').style.display='block';$('#panel').classList.remove('off');['#bSave','#bCmp'].forEach(s=>$(s).disabled=false);
  if(tab==='crop'){tab='';setTab('crop');}else buildTools();cv.width=0;render();}
@@ -615,6 +664,46 @@ $('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
 const cmp=$('#bCmp');
 cmp.addEventListener('pointerdown',e=>{e.preventDefault();showOrig=true;req();});
 ['pointerup','pointerleave','pointercancel'].forEach(t=>cmp.addEventListener(t,()=>{if(showOrig){showOrig=false;req();}}));
+
+/* ================= AI ENHANCE (perbaiki wajah, model GPEN open-source, jalan di HP) ================= */
+let SRCS=[];
+const ENH={session:null}, GPEN_URL='https://huggingface.co/facefusion/models-3.0.0/resolve/main/gpen_bfr_256.onnx';
+const TPL=[[0.36167656,0.40387734],[0.63696719,0.40235469],[0.50019687,0.56044219],[0.38710391,0.72160547],[0.61507734,0.72034453]].map(p=>[p[0]*256,p[1]*256]);
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+async function fetchCached(url,onp){let c=null;try{c=await caches.open('nomatter-ai-v1');const hit=await c.match(url);if(hit)return await hit.arrayBuffer();}catch(e){}
+ const r=await fetch(url,{mode:'cors'});if(!r.ok)throw new Error('HTTP '+r.status);const total=+r.headers.get('content-length')||0;
+ let buf;if(r.body&&r.body.getReader){const rd=r.body.getReader(), parts=[];let got=0;for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;onp&&onp(got,total);}buf=new Uint8Array(got);let o=0;for(const p of parts){buf.set(p,o);o+=p.length;}}
+ else buf=new Uint8Array(await r.arrayBuffer());
+ try{c&&await c.put(url,new Response(buf.slice(0),{headers:{'content-type':'application/octet-stream'}}));}catch(e){}return buf.buffer;}
+async function enhSession(onp){if(ENH.session)return ENH.session;if(!window.ort)await loadScript('ort.wasm.min.js');
+ ort.env.wasm.numThreads=1;ort.env.logLevel='error';ort.env.wasm.wasmPaths=new URL('.',location.href).href;
+ const buf=await fetchCached(window.GPEN_LOCAL||GPEN_URL,onp);ENH.session=await ort.InferenceSession.create(buf,{executionProviders:['wasm'],graphOptimizationLevel:'all'});return ENH.session;}
+function simT(src,dst){const n=src.length;let mx=0,my=0,ux=0,uy=0;for(let i=0;i<n;i++){mx+=src[i][0];my+=src[i][1];ux+=dst[i][0];uy+=dst[i][1];}mx/=n;my/=n;ux/=n;uy/=n;
+ let n1=0,n2=0,den=0;for(let i=0;i<n;i++){const sx=src[i][0]-mx, sy=src[i][1]-my, dx=dst[i][0]-ux, dy=dst[i][1]-uy;n1+=sx*dx+sy*dy;n2+=sx*dy-sy*dx;den+=sx*sx+sy*sy;}
+ const a=n1/den, b=n2/den;return {a,b,tx:ux-(a*mx-b*my),ty:uy-(b*mx+a*my)};}
+let enhStrength=85;
+async function aiEnhance(){if(!S.src)return;busy(true,'Memuat AI Enhance… (sekali saja, ±75 MB)');
+ try{const sess=await enhSession((g,t)=>{$('#busyT').textContent='Mengunduh AI Enhance '+(t?Math.round(g/t*100)+'%':Math.round(g/1e6)+' MB')+' (sekali saja)';});
+  $('#busyT').textContent='Mencari wajah…';await new Promise(r=>setTimeout(r,20));
+  const src=S.src, W=src.width, H=src.height, sc=Math.min(1,1280/Math.max(W,H)), det=mk(W*sc,H*sc);det.getContext('2d').drawImage(src,0,0,det.width,det.height);
+  const faces=((await aiFace()).detect(det).faceLandmarks||[]).filter(f=>f.length>=478);
+  if(!faces.length){busy(false);hint('Wajah tidak terdeteksi');return;}
+  const out=mk(W,H), ox=out.getContext('2d');ox.drawImage(src,0,0);
+  const msk=mk(256,256), mx=msk.getContext('2d');mx.save();mx.shadowOffsetX=600;mx.shadowColor='#000';mx.shadowBlur=22;mx.fillStyle='#000';mx.beginPath();if(mx.roundRect)mx.roundRect(30-600,26,196,212,60);else mx.rect(30-600,26,196,212);mx.fill();mx.restore();
+  let k=0;for(const f of faces){k++;$('#busyT').textContent=`AI Enhance wajah ${k}/${faces.length}…`;await new Promise(r=>setTimeout(r,20));
+   const P=i=>[f[i].x*W,f[i].y*H], eyes=[P(468),P(473)].sort((a,b)=>a[0]-b[0]), mouth=[P(61),P(291)].sort((a,b)=>a[0]-b[0]);
+   const T=simT([eyes[0],eyes[1],P(1),mouth[0],mouth[1]],TPL);
+   const crop=mk(256,256), cx=ctx2(crop);cx.imageSmoothingQuality='high';cx.setTransform(T.a,T.b,-T.b,T.a,T.tx,T.ty);cx.drawImage(src,0,0);cx.setTransform(1,0,0,1,0,0);
+   const id=cx.getImageData(0,0,256,256).data, N=256*256, inp=new Float32Array(3*N);
+   for(let i=0;i<N;i++){inp[i]=id[i*4]/127.5-1;inp[N+i]=id[i*4+1]/127.5-1;inp[2*N+i]=id[i*4+2]/127.5-1;}
+   const res=await sess.run({[sess.inputNames[0]]:new ort.Tensor('float32',inp,[1,3,256,256])}), o=res[sess.outputNames[0]].data;
+   const od=cx.createImageData(256,256);for(let i=0;i<N;i++){od.data[i*4]=(clamp(o[i],-1,1)+1)*127.5;od.data[i*4+1]=(clamp(o[N+i],-1,1)+1)*127.5;od.data[i*4+2]=(clamp(o[2*N+i],-1,1)+1)*127.5;od.data[i*4+3]=255;}
+   cx.putImageData(od,0,0);cx.globalCompositeOperation='destination-in';cx.drawImage(msk,0,0);cx.globalCompositeOperation='source-over';
+   const det2=T.a*T.a+T.b*T.b, A=T.a/det2, C=T.b/det2, B=-T.b/det2, D=T.a/det2;
+   ox.save();ox.imageSmoothingQuality='high';ox.setTransform(A,B,C,D,-(A*T.tx+C*T.ty),-(B*T.tx+D*T.ty));ox.globalAlpha=enhStrength/100;ox.drawImage(crop,0,0);ox.restore();}
+  SRCS=SRCS.slice(0,(S.srcIdx||0)+1);SRCS.push(out);S.srcIdx=SRCS.length-1;S.src=out;GEO={key:''};STG={key:''};commit();buildTools();req();hint('AI Enhance selesai ✓ (bisa diurungkan)');
+ }catch(e){console.error(e);alert('AI Enhance gagal: '+(e.message||e)+'\nPastikan internet aktif saat pertama kali.');}
+ busy(false);}
 
 /* ================= MENU / RECIPE / BATCH ================= */
 const RECIPE=['adj','filter','fstr','beauty','face','fx','date','bg','frame','canvas'];
